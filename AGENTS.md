@@ -11,7 +11,7 @@ that only reads/measures/reports doesn't.**
 |---|---|---|
 | `new-feature` | Setup — isolate a task into its own worktree/branch | Repo structure only (branch/worktree), not source |
 | `current-docs` | Pre-implementation research — verify against the actually-installed version's official docs | No — read-only research |
-| `understand-before-changing` | Pre-change investigation — classify why existing code is the way it is before modifying/removing it | No — read-only investigation |
+| `understand-before-changing` | Ongoing lens — investigate why existing code is the way it is before editing, deleting, *or adding to* any existing file | No — read-only investigation |
 | `code-structure` | Ongoing lens applied while writing code | No — guidance only |
 | `no-ai-tells` | Ongoing final-pass discipline applied while writing code | Yes — but as part of the same edit, not a separate process |
 | `evidence-driven-testing` | Verification — capture proof after implementation | Writes output artifacts (video/report), not source |
@@ -30,14 +30,17 @@ Runs in order, one agent/session, single worktree:
    pinned version and pull its official docs before writing code against it.
    Skip this step outright for stable syntax/stdlib work; it's not a tax on
    every task.
-3. **`understand-before-changing`**, when the task modifies, refactors, or
-   removes *existing* implementation rather than adding wholly new code —
-   investigate and classify the original intent before touching it. Skip for
-   genuinely new code with no prior implementation to investigate.
-4. **Implement**, applying `code-structure` as the architecture lens and
-   `no-ai-tells` as the final pass before considering any code-writing step
-   done. These aren't separate phases — they run inline with the writing.
-5. **`evidence-driven-testing`** — once the change works and tests pass,
+3. **Implement**, applying all three ongoing lenses inline — they aren't
+   separate phases, they run continuously while writing:
+   - `understand-before-changing` the moment the work touches an
+     already-existing file, in *any* of the three ways: editing it,
+     deleting from it, or adding new code into it. Only genuinely new
+     files/modules with nothing existing to reference are exempt.
+   - `code-structure` for where new logic belongs (action vs. service
+     layer).
+   - `no-ai-tells` as the final pass before considering any code-writing
+     step done.
+4. **`evidence-driven-testing`** — once the change works and tests pass,
    capture proof.
 
 ## Sequence 2 — auditing or cleaning an existing codebase

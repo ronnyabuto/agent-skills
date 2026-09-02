@@ -83,18 +83,21 @@ genuine version uncertainty, not every task.
 
 ### [understand-before-changing](understand-before-changing/SKILL.md)
 
-Chesterton's Fence for code: before modifying, refactoring, or removing
-*existing* implementation, investigate why it's there (git blame/log, tests,
-comments, linked issues) and classify the finding as confirmed-valid,
-outdated/wrong, or undeterminable — never invent a plausible-sounding "why"
-when the real answer is "unknown." Gates `no-ai-tells-audit` before it deletes
-anything. Original, self-authored. Not for genuinely new code with no prior
-implementation to investigate.
+Chesterton's Fence for code, applied broadly: whenever a task touches an
+*already-existing* file — editing it, deleting from it, **or adding new code
+into it** — investigate why the existing implementation is the way it is
+(git blame/log, tests, comments, linked issues) before touching it. Classify
+the finding as confirmed-valid, outdated/wrong, or undeterminable — never
+invent a plausible-sounding "why" when the real answer is "unknown." Also
+gates `no-ai-tells-audit` before it deletes anything. Original,
+self-authored. Only exempt for a genuinely new file/module with nothing
+existing to reference.
 
 ## How these fit together
 
 [AGENTS.md](AGENTS.md) defines the actual orchestration: which skills run in
-sequence (`new-feature` → implement with `code-structure`/`no-ai-tells` →
+sequence (`new-feature` → implement, with `understand-before-changing` /
+`code-structure` / `no-ai-tells` all applied inline as ongoing lenses →
 `evidence-driven-testing`), and which are safe to run concurrently
 (`project-audit` + `ux-speed-audit`, since both are read/measure-only) versus
 which need exclusive write access to the tree (`no-ai-tells-audit`, since it
