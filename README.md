@@ -62,6 +62,24 @@ naming inconsistent with the surrounding file). Sourced from cross-checked
 research (AI-code-review-tooling writeups), not just opinion. Original,
 self-authored. Use as a final pass before finishing any code-writing task.
 
+### [no-ai-tells-audit](no-ai-tells-audit/SKILL.md)
+
+The one-time remediation version of `no-ai-tells` — sweeps an *existing*
+codebase for the same tells and fixes them, rather than applying the checklist
+inline while writing new code. **Mutates source directly** — see
+[AGENTS.md](AGENTS.md) for how to sequence it against the other skills.
+Original, self-authored. Use for "clean up this codebase" / "get rid of AI
+tells."
+
+## How these fit together
+
+[AGENTS.md](AGENTS.md) defines the actual orchestration: which skills run in
+sequence (`new-feature` → implement with `code-structure`/`no-ai-tells` →
+`evidence-driven-testing`), and which are safe to run concurrently
+(`project-audit` + `ux-speed-audit`, since both are read/measure-only) versus
+which need exclusive write access to the tree (`no-ai-tells-audit`, since it
+edits source directly).
+
 ## Installing (per machine)
 
 Symlink each skill folder — or the whole repo — into the client's skills directory so
@@ -69,12 +87,12 @@ edits here take effect immediately everywhere:
 
 ```bash
 # Claude Code (global, all projects)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells; do
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit; do
   ln -s ~/Desktop/agent-skills/$skill ~/.claude/skills/$skill
 done
 
 # Antigravity (global, all workspaces)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells; do
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit; do
   ln -s ~/Desktop/agent-skills/$skill ~/.gemini/antigravity/skills/$skill
 done
 ```
