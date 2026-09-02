@@ -53,6 +53,15 @@ source alone — Core Web Vitals, render-blocking resources, bundle size, percei
 speed, data-layer waterfalls, caching. Original, self-authored. Use for "make it
 feel instant" / loading-speed audits.
 
+### [no-ai-tells](no-ai-tells/SKILL.md)
+
+Final-pass checklist against comment/structural patterns that read as
+LLM-generated or amateur (redundant comments, banner dividers, staged "Step 1/2"
+narration, task-reference comments, disproportionate defensive completeness,
+naming inconsistent with the surrounding file). Sourced from cross-checked
+research (AI-code-review-tooling writeups), not just opinion. Original,
+self-authored. Use as a final pass before finishing any code-writing task.
+
 ## Installing (per machine)
 
 Symlink each skill folder — or the whole repo — into the client's skills directory so
@@ -60,12 +69,12 @@ edits here take effect immediately everywhere:
 
 ```bash
 # Claude Code (global, all projects)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit; do
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells; do
   ln -s ~/Desktop/agent-skills/$skill ~/.claude/skills/$skill
 done
 
 # Antigravity (global, all workspaces)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit; do
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells; do
   ln -s ~/Desktop/agent-skills/$skill ~/.gemini/antigravity/skills/$skill
 done
 ```
