@@ -38,6 +38,21 @@ annotations, or scripted screenshots in headless environments), then summarizes 
 Needs `ffmpeg`/`ffprobe` (with libx264) locally — see the skill's `compatibility` note.
 Use whenever a change needs verifiable evidence instead of prose claims.
 
+### [project-audit](project-audit/SKILL.md)
+
+Full-codebase health audit — architecture, correctness risk, security, dependencies,
+test coverage, operational readiness — as a prioritized, severity-ranked findings
+report. Original, self-authored (not from upstream). Use for "audit this project" /
+"review the codebase" style requests.
+
+### [ux-speed-audit](ux-speed-audit/SKILL.md)
+
+Audits UX responsiveness and page-load speed against Nielsen's response-time
+thresholds (0.1s = instant, 1s = max before flow breaks). Measures live, not from
+source alone — Core Web Vitals, render-blocking resources, bundle size, perceived
+speed, data-layer waterfalls, caching. Original, self-authored. Use for "make it
+feel instant" / loading-speed audits.
+
 ## Installing (per machine)
 
 Symlink each skill folder — or the whole repo — into the client's skills directory so
@@ -45,14 +60,14 @@ edits here take effect immediately everywhere:
 
 ```bash
 # Claude Code (global, all projects)
-ln -s ~/Desktop/agent-skills/code-structure ~/.claude/skills/code-structure
-ln -s ~/Desktop/agent-skills/new-feature ~/.claude/skills/new-feature
-ln -s ~/Desktop/agent-skills/evidence-driven-testing ~/.claude/skills/evidence-driven-testing
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit; do
+  ln -s ~/Desktop/agent-skills/$skill ~/.claude/skills/$skill
+done
 
 # Antigravity (global, all workspaces)
-ln -s ~/Desktop/agent-skills/code-structure ~/.gemini/antigravity/skills/code-structure
-ln -s ~/Desktop/agent-skills/new-feature ~/.gemini/antigravity/skills/new-feature
-ln -s ~/Desktop/agent-skills/evidence-driven-testing ~/.gemini/antigravity/skills/evidence-driven-testing
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit; do
+  ln -s ~/Desktop/agent-skills/$skill ~/.gemini/antigravity/skills/$skill
+done
 ```
 
 Project-scoped instead of global: symlink into `.claude/skills/` or `.agents/skills/`
