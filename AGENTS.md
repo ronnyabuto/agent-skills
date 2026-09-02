@@ -1,6 +1,6 @@
 # Skill Orchestration
 
-How these 7 skills relate — what has to run in order, and what's safe to run
+How these 8 skills relate — what has to run in order, and what's safe to run
 at the same time. The dividing line is simple: **anything that writes to
 source files needs exclusive access to the tree it's writing to. Anything
 that only reads/measures/reports doesn't.**
@@ -10,6 +10,7 @@ that only reads/measures/reports doesn't.**
 | Skill | Role | Mutates files? |
 |---|---|---|
 | `new-feature` | Setup — isolate a task into its own worktree/branch | Repo structure only (branch/worktree), not source |
+| `current-docs` | Pre-implementation research — verify against the actually-installed version's official docs | No — read-only research |
 | `code-structure` | Ongoing lens applied while writing code | No — guidance only |
 | `no-ai-tells` | Ongoing final-pass discipline applied while writing code | Yes — but as part of the same edit, not a separate process |
 | `evidence-driven-testing` | Verification — capture proof after implementation | Writes output artifacts (video/report), not source |
@@ -23,10 +24,15 @@ Runs in order, one agent/session, single worktree:
 
 1. **`new-feature`** — isolate into a fresh worktree/branch before writing
    anything.
-2. **Implement**, applying `code-structure` as the architecture lens and
+2. **`current-docs`**, when the work touches a library/framework/SDK/API
+   whose current behavior isn't a sure thing from memory — identify the
+   pinned version and pull its official docs before writing code against it.
+   Skip this step outright for stable syntax/stdlib work; it's not a tax on
+   every task.
+3. **Implement**, applying `code-structure` as the architecture lens and
    `no-ai-tells` as the final pass before considering any code-writing step
    done. These aren't separate phases — they run inline with the writing.
-3. **`evidence-driven-testing`** — once the change works and tests pass,
+4. **`evidence-driven-testing`** — once the change works and tests pass,
    capture proof.
 
 ## Sequence 2 — auditing or cleaning an existing codebase

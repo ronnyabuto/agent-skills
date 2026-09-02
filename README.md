@@ -71,6 +71,16 @@ inline while writing new code. **Mutates source directly** — see
 Original, self-authored. Use for "clean up this codebase" / "get rid of AI
 tells."
 
+### [current-docs](current-docs/SKILL.md)
+
+Before implementing against a library/framework/SDK/API whose current
+behavior isn't certain from memory, identify the version actually pinned in
+this project (lockfile/manifest, not "latest") and fetch *that* version's
+official docs as source of truth. Greenfield/unpinned deps get latest docs
+instead, since there's no existing constraint to respect. Original,
+self-authored. Skip it for stable stdlib/syntax work — it's scoped to
+genuine version uncertainty, not every task.
+
 ## How these fit together
 
 [AGENTS.md](AGENTS.md) defines the actual orchestration: which skills run in
@@ -87,12 +97,12 @@ edits here take effect immediately everywhere:
 
 ```bash
 # Claude Code (global, all projects)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit; do
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs; do
   ln -s ~/Desktop/agent-skills/$skill ~/.claude/skills/$skill
 done
 
 # Antigravity (global, all workspaces)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit; do
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs; do
   ln -s ~/Desktop/agent-skills/$skill ~/.gemini/antigravity/skills/$skill
 done
 ```
