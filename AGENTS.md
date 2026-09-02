@@ -1,6 +1,6 @@
 # Skill Orchestration
 
-How these 8 skills relate — what has to run in order, and what's safe to run
+How these 9 skills relate — what has to run in order, and what's safe to run
 at the same time. The dividing line is simple: **anything that writes to
 source files needs exclusive access to the tree it's writing to. Anything
 that only reads/measures/reports doesn't.**
@@ -11,6 +11,7 @@ that only reads/measures/reports doesn't.**
 |---|---|---|
 | `new-feature` | Setup — isolate a task into its own worktree/branch | Repo structure only (branch/worktree), not source |
 | `current-docs` | Pre-implementation research — verify against the actually-installed version's official docs | No — read-only research |
+| `understand-before-changing` | Pre-change investigation — classify why existing code is the way it is before modifying/removing it | No — read-only investigation |
 | `code-structure` | Ongoing lens applied while writing code | No — guidance only |
 | `no-ai-tells` | Ongoing final-pass discipline applied while writing code | Yes — but as part of the same edit, not a separate process |
 | `evidence-driven-testing` | Verification — capture proof after implementation | Writes output artifacts (video/report), not source |
@@ -29,10 +30,14 @@ Runs in order, one agent/session, single worktree:
    pinned version and pull its official docs before writing code against it.
    Skip this step outright for stable syntax/stdlib work; it's not a tax on
    every task.
-3. **Implement**, applying `code-structure` as the architecture lens and
+3. **`understand-before-changing`**, when the task modifies, refactors, or
+   removes *existing* implementation rather than adding wholly new code —
+   investigate and classify the original intent before touching it. Skip for
+   genuinely new code with no prior implementation to investigate.
+4. **Implement**, applying `code-structure` as the architecture lens and
    `no-ai-tells` as the final pass before considering any code-writing step
    done. These aren't separate phases — they run inline with the writing.
-4. **`evidence-driven-testing`** — once the change works and tests pass,
+5. **`evidence-driven-testing`** — once the change works and tests pass,
    capture proof.
 
 ## Sequence 2 — auditing or cleaning an existing codebase
@@ -45,7 +50,11 @@ Not tied to a specific feature; run this against the whole repo:
    agents/forks against the same snapshot and merge the findings.
 2. **`no-ai-tells-audit` alone, after step 1 finishes** — this one edits
    source directly, so it needs the tree to itself. Don't run it at the same
-   time as another skill that's also writing to the same files.
+   time as another skill that's also writing to the same files. Before
+   actually removing or rewriting anything it flags, run it through
+   `understand-before-changing` first — a pattern that looks like an AI tell
+   can still be load-bearing, and this is exactly the gate that catches that
+   before deletion, not after.
 3. **`evidence-driven-testing`** — capture proof the remediation didn't
    break behavior.
 4. **`no-ai-tells`** carries forward as the ongoing discipline for whatever

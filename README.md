@@ -81,6 +81,16 @@ instead, since there's no existing constraint to respect. Original,
 self-authored. Skip it for stable stdlib/syntax work — it's scoped to
 genuine version uncertainty, not every task.
 
+### [understand-before-changing](understand-before-changing/SKILL.md)
+
+Chesterton's Fence for code: before modifying, refactoring, or removing
+*existing* implementation, investigate why it's there (git blame/log, tests,
+comments, linked issues) and classify the finding as confirmed-valid,
+outdated/wrong, or undeterminable — never invent a plausible-sounding "why"
+when the real answer is "unknown." Gates `no-ai-tells-audit` before it deletes
+anything. Original, self-authored. Not for genuinely new code with no prior
+implementation to investigate.
+
 ## How these fit together
 
 [AGENTS.md](AGENTS.md) defines the actual orchestration: which skills run in
@@ -97,12 +107,12 @@ edits here take effect immediately everywhere:
 
 ```bash
 # Claude Code (global, all projects)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs; do
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs understand-before-changing; do
   ln -s ~/Desktop/agent-skills/$skill ~/.claude/skills/$skill
 done
 
 # Antigravity (global, all workspaces)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs; do
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs understand-before-changing; do
   ln -s ~/Desktop/agent-skills/$skill ~/.gemini/antigravity/skills/$skill
 done
 ```

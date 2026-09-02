@@ -55,9 +55,13 @@ rules before running it alongside other in-flight work.
    inconsistent with this codebase's own convention. Don't strip something
    just because it matches a category; strip it because inspection confirms
    it isn't earning its place.
-3. Fix what's confirmed: delete the comment, rename for consistency, collapse
-   the duplication, trim the excess defensiveness. Don't touch comments that
-   are doing real work — a genuine "why" note on a non-obvious constraint stays.
+3. Before deleting or rewriting anything from step 1's list, run it through
+   `understand-before-changing` — a pattern that looks like an AI tell (an
+   over-defensive check, a "redundant" re-validation) can still be
+   load-bearing. Then fix what's confirmed: delete the comment, rename for
+   consistency, collapse the duplication, trim the excess defensiveness.
+   Don't touch comments that are doing real work — a genuine "why" note on a
+   non-obvious constraint stays.
 4. After each batch of changes, verify nothing broke: run the type checker,
    linter, and test suite. A comment-stripping pass that breaks the build is a
    regression, not a cleanup.
