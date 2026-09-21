@@ -31,6 +31,12 @@ rules before running it alongside other in-flight work.
 - Apologetic or hedging comments ("this might not be the best way but...")
 - Generic, context-free phrasing that doesn't match this codebase's actual tone
 
+These compound rather than appearing alone — e.g. a function where every line
+has a comment restating it, and the one comment that survives cleanup is the
+one explaining an actual choice (a cost parameter, a non-default flag) the
+code doesn't already show. Read the whole function before deciding what to
+cut, not comment-by-comment on a first pass.
+
 **Structure/naming:**
 - Defensive completeness beyond what the real failure modes justify (e.g.
   re-validating data already validated one layer up)
@@ -39,6 +45,10 @@ rules before running it alongside other in-flight work.
 - Near-duplicated logic (2-3 blocks 90% identical) instead of one shared path
 - Mechanical placeholder names (`tempData`, `result`, `item`) past the point
   where a real name is easy
+- Phase-named identifiers — functions/variables/section headers named after
+  narration order rather than what they do (`step1Validate()`, `step1Result`,
+  a `## Step 1: Setup` header) — the staged-narration tell moved into the name
+  instead of a comment above it
 - Test smells: module-wide `jest.mock()` where targeted `spyOn()` would do,
   redundant `beforeEach` resets "just to be safe," loose `as any`, regex
   assertions where exact-match works, reimplemented helpers that already exist

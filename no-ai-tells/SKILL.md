@@ -31,6 +31,39 @@ a hidden constraint, a workaround for a specific bug, behavior that would
 surprise the next reader. If deleting the comment wouldn't confuse anyone,
 delete it.
 
+### Worked example — these tells compound, they don't appear alone
+
+```js
+// AI-authored, uncleaned
+function createUser(email, password) {
+  // check if email is provided
+  if (!email) {
+    // throw an error
+    throw new Error("Email is required");
+  }
+  // hash the password
+  const hash = bcrypt.hashSync(password, 10);
+  // create the user object
+  const user = { email, hash };
+  // save the user
+  return db.users.insert(user);
+}
+```
+
+```js
+// cleaned
+function createUser(email, password) {
+  if (!email) throw new Error("Email is required");
+  const hash = bcrypt.hashSync(password, 10); // cost 10 — matches the rest of this service
+  return db.users.insert({ email, hash });
+}
+```
+
+Every stripped comment restated its line; the one kept explains a choice
+(bcrypt cost) the code itself doesn't show. Same move on a real diff: read
+the whole function first, then remove line-by-line before deciding what, if
+anything, earns a comment — don't decide comment-by-comment on a first pass.
+
 ## Structural/naming tells
 
 - **Disproportionate defensive completeness** — every branch handled, every
@@ -45,6 +78,12 @@ delete it.
   with the `code-structure` skill's actions/service-layer lens.)
 - **Mechanical placeholder names** — `tempData`, `result`, `item` used past the
   point where a real name is easy and cheap.
+- **Phase-named identifiers** — functions, variables, or section headers named
+  after the narration order instead of what they do: `step1Validate()`,
+  `phaseTwoProcess()`, `step1Result`, a `## Step 1: Setup` prose header. Same
+  tell as staged/phased comment narration, just moved into the name instead of
+  a comment above it. Name for what the thing *is* — `validateSignupPayload()`,
+  `hashedPassword` — not where it sits in a plan.
 - **Test-specific smells** — module-wide `jest.mock()` where a targeted
   `spyOn()` would do, redundant `beforeEach` resets "just to be safe," loose
   `as any` typing, regex assertions where exact-match works, reimplementing a
