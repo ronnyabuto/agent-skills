@@ -119,6 +119,26 @@ sequence (`new-feature` → implement, with `understand-before-changing` /
 which need exclusive write access to the tree (`no-ai-tells-audit`, since it
 edits source directly).
 
+## Evals
+
+`evals/<skill>.json` holds three scenarios per skill in Anthropic's
+documented format (`skills`, `query`, `files`, `expected_behavior`): two that
+should trigger the skill and one near-miss that shouldn't. The trigger check
+runs each query in a fresh headless session inside a throwaway fixture repo
+and records which skills it invokes:
+
+```bash
+evals/build_fixture.sh /tmp/skill-evals
+python3 evals/run_trigger_evals.py /tmp/skill-evals sonnet   # or: haiku, opus; add skill names to filter
+```
+
+It measures the skills installed in `~/.claude/skills`, so merge description
+changes first. Last measured on Sonnet (2026-09-23, one sample per case):
+27/30, with run-to-run variation on individual cases, so rerun before
+reading much into a single miss. It checks triggering only; whether the
+skill's instructions are then followed (`expected_behavior` beyond the first
+line) still needs a human read of the transcript.
+
 ## Installing (per machine)
 
 Symlink each skill folder — or the whole repo — into the client's skills directory so
