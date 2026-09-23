@@ -1,0 +1,38 @@
+[
+  {
+    "skills": [
+      "current-docs"
+    ],
+    "query": "Add a Stripe Checkout session endpoint to this Express app.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the current-docs skill",
+      "Reads the lockfile/package.json to find the installed stripe SDK version before writing code",
+      "Fetches that version's official Stripe docs rather than relying on memory",
+      "States explicitly where docs contradict what it expected"
+    ]
+  },
+  {
+    "skills": [
+      "current-docs"
+    ],
+    "query": "Upgrade our Next.js middleware to the new API — we're on next 14.2 per the lockfile.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the current-docs skill",
+      "Fetches docs for Next.js 14.2 specifically, not the latest major",
+      "Verifies exact config/field names against raw doc text before relying on a summary"
+    ]
+  },
+  {
+    "skills": [
+      "current-docs"
+    ],
+    "query": "Write a bash one-liner that counts lines in all .py files.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke the current-docs skill (stable POSIX tooling)",
+      "Answers directly"
+    ]
+  }
+]

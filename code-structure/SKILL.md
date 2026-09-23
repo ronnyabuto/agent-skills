@@ -1,6 +1,6 @@
 ---
 name: code-structure
-description: Use when multiple workflows duplicate the same operational logic, when deciding what belongs in actions vs shared services, or when refactoring repeated operational blocks across domain flows. Use when adding new features that share mechanics with existing ones.
+description: Separates actions (domain rules, the when/why) from a shared service layer (reusable operational mechanics, the how), extracting only proven duplication. Use when multiple workflows duplicate the same operational logic, when deciding what belongs in actions vs shared services, or when refactoring repeated operational blocks across domain flows. Use when adding new features that share mechanics with existing ones.
 ---
 
 # Service Layer Architecture
@@ -44,7 +44,7 @@ Orchestration Layer (Actions)          Service Layer (Shared Mechanics)
 | Inputs/outputs | Explicit params, structured returns | Hidden global state, reaching into DB |
 | Migration | Extract one block, replace one caller, verify, then migrate rest | Refactor everything at once |
 | Domain logic | Keep auth, policy, error classification in actions | Let service mutate domain state directly |
-| Extraction trigger | Logic repeated across 2+ callers | Logic used once (over-abstraction) |
+| Extraction trigger | Third occurrence (rule of three), or a bug that had to be fixed in more than one copy | Extracting at the second copy by reflex, or logic used once |
 
 ## Designing Service Functions
 
@@ -87,13 +87,14 @@ When extracting shared logic:
 | **Leaky service** | Service mutates database tables directly |
 | **Inconsistent API** | Each function uses different argument styles and error semantics |
 | **Over-abstraction** | Extracting logic used by only one caller |
+| **Wrong abstraction** | A shared function that keeps growing flags and branches so each caller gets its variant — inline it back into the callers and re-extract only what's truly common (duplication is cheaper than the wrong abstraction) |
 
 ## Example: Email Service (Simple)
 
 ```ts
 // emailService.ts — shared mechanics
 export async function sendWelcomeEmail(params: { to: string; name: string }) {
-  const html = `<h1>Welcome ${params.name}</h1>`;
+  const html = `<h1>Welcome ${escapeHtml(params.name)}</h1>`;
   await emailProvider.send(params.to, "Welcome", html);
 }
 
@@ -109,8 +110,9 @@ await sendWelcomeEmail({ to: invitee.email, name: invitee.name });
 ## Mental Model
 
 ```
-New feature? → Write in action first → See repeated ops? → Extract to service
-                                      → No repetition?  → Keep in action
+New feature? → Write in action first → Third copy of the same op? → Extract to service
+                                      → Two copies?  → Tolerate it, note it
+                                      → One copy?    → Keep in action
 ```
 
 Your architecture in one sentence: **Actions orchestrate domain rules, while the service layer centralizes reusable operational mechanics with a composable, explicit-input API.**

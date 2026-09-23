@@ -1,0 +1,38 @@
+[
+  {
+    "skills": [
+      "code-structure"
+    ],
+    "query": "Our signup, admin-invite, and password-reset flows each build and send an email with their own copy of the SMTP retry logic. A bug fix to retries only landed in one. Clean this up.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the code-structure skill",
+      "Identifies the retry/send mechanics as the shared operation and keeps each flow's when/why decision in its own action",
+      "Extracts one service function with explicit inputs and a structured result, migrating one caller first and verifying before the rest",
+      "Does not move business rules (who gets emailed, when) into the service"
+    ]
+  },
+  {
+    "skills": [
+      "code-structure"
+    ],
+    "query": "I've written the same 6-line S3 upload helper in two handlers. Should I pull it into a shared service now?",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the code-structure skill",
+      "Advises tolerating two copies and extracting at the third occurrence (rule of three) unless a bug already had to be fixed in both",
+      "Mentions the wrong-abstraction risk of extracting too early"
+    ]
+  },
+  {
+    "skills": [
+      "code-structure"
+    ],
+    "query": "Rename the variable `usr` to `user` in src/profile.ts.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke the code-structure skill",
+      "Performs the rename directly"
+    ]
+  }
+]

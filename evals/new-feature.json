@@ -1,0 +1,37 @@
+[
+  {
+    "skills": [
+      "new-feature"
+    ],
+    "query": "Start working on adding CSV export to the reports page.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the new-feature skill before writing any code",
+      "Fetches origin and checks open PRs / uncommitted work for scope conflicts",
+      "Works in an isolated worktree on a new branch, not on main",
+      "In Claude Code, uses the harness worktree (.claude/worktrees/<name>, branch worktree-<name>) instead of a manual git worktree add"
+    ]
+  },
+  {
+    "skills": [
+      "new-feature"
+    ],
+    "query": "Fix the off-by-one in the date picker.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the new-feature skill before editing",
+      "Confirms the branch is not main before making changes"
+    ]
+  },
+  {
+    "skills": [
+      "new-feature"
+    ],
+    "query": "What does `git worktree prune` do?",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke the new-feature skill",
+      "Answers the question directly without creating a worktree"
+    ]
+  }
+]

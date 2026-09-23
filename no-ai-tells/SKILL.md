@@ -1,14 +1,21 @@
 ---
 name: no-ai-tells
-description: Use as a final pass before finishing any code-writing task, and whenever asked to clean up, review, or remove "AI tells"/vibecoded signs from code. Strips comment and structural patterns that read as LLM-generated, over-commented, or amateur — so output looks hand-written by someone who knows the codebase, not freshly generated.
+description: Strips comment and structural patterns that read as LLM-generated, over-commented, or templated — comments that restate code, change-history narration, untracked stubs, generic names, near-duplicate blocks — so code reads as written by someone who knows this codebase. Use as a final pass before finishing any code-writing task, and whenever asked to clean up, review, or remove "AI tells"/vibecoded signs from code.
 ---
 
 # No AI Tells
 
 A final-pass filter, not a first-pass style. Write the code, then run this
-checklist before calling it done. The goal isn't "no comments ever" — it's
-comments and structure that read as *this codebase's* work, not a generic
-single-pass output.
+checklist before calling it done. The goal isn't "no comments ever", and it
+isn't disguising who wrote the code — it's code that's cheap for the next
+reader: comments that carry information the code can't, and structure that
+fits *this codebase's* conventions rather than a generic template.
+
+What the evidence supports: large human-vs-LLM code comparisons find
+generated code more templated and repetitive, with more generic naming,
+unused constructs, and duplicated blocks. The comment-level entries below
+are established readability practice more than measured AI signatures —
+treat them as review heuristics, not a detector.
 
 ## Comment tells
 
@@ -16,13 +23,13 @@ single-pass output.
 |---|---|---|
 | Restates the line | `// increment the counter` above `i++` | Comment adds zero information the code didn't already give |
 | Explains what, not why | `// hash the password` above `bcrypt.hash(...)` | The *what* is obvious from the call; the missing signal is *why this choice* (e.g. "bcrypt over argon2 — deploy target has no libsodium") |
-| Banner/divider comments | `# ===== User Authentication =====` | Humans rarely do this inside a file; it's a single-pass-generation tell |
+| Banner/divider comments | `# ===== User Authentication =====` in a file that doesn't otherwise use them | The tell is the mismatch with the codebase's convention — some codebases use section banners deliberately; follow theirs |
 | Uniform density | A comment on every function, evenly spaced | Humans comment where they had to think hard, not everywhere equally |
 | Backwards placement | Comments on the obvious lines, silence at the actual decision point | The tell isn't volume, it's *where* the comments land |
-| Task/fix references | `// fixed for issue #123`, `// added for the new signup flow` | Belongs in the commit message/PR description, not the code — it rots as the codebase evolves |
+| Change-history references | `// fixed for issue #123`, `// added for the new signup flow` | Narrates when/why the line was *changed* — that belongs in the commit message and rots in the file. Not the same as a link to an upstream bug that a live workaround depends on (`// works around foo#123; remove once fixed`) — that one tells the reader when the code can go, so keep it |
 | Removed-code narration | `// removed the old validation here`, `// no longer using X` | Git history is the record of what changed; the file should only describe what *is* |
 | Staged/phased narration | `// Step 1: validate input` / `// Step 2: process` | Narrates the plan instead of just writing the steps as code |
-| Leftover scaffolding | `// TODO: implement`, `// placeholder`, unfinished stubs in "done" code | Signals it was never actually finished, not a deliberate placeholder |
+| Leftover scaffolding | `// TODO: implement`, `// placeholder`, unfinished stubs in "done" code | Signals it was never finished. A *tracked* TODO — owner or issue ID plus a concrete removal condition (`// TODO(#482): drop after the v2 API sunset`) — is standard practice (Google's C++ style guide recommends this form) and stays |
 | Apologetic/hedging | `// this might not be the best way but...` | Ship a decision, don't narrate uncertainty into the file |
 | Generic, context-free phrasing | Formal boilerplate ("The provided email address is not in a valid format") that doesn't match this codebase's existing tone | Reads as templated, not written by someone in this repo |
 

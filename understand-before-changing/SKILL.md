@@ -36,6 +36,14 @@ investigate — there's nothing to understand yet.
      relevant even when *adding*, since it reveals the convention being
      extended
    - CHANGELOG/release notes, if the repo keeps one
+   - Past agent sessions, if `vault-memory` is set up — the "why" behind a
+     choice is often in the discussion, not the commit message
+
+   **Scale the digging to the risk.** A one-line addition that follows a
+   pattern already visible in the file needs a glance at that pattern, not
+   a history dig. Go deep when deleting or changing behavior, when the code
+   looks wrong or redundant, or when it touches auth, payments, data writes,
+   or concurrency — the places where a load-bearing oddity costs the most.
 
 2. **Classify what you found** into exactly one of three states — don't
    blend them or jump straight to a fix:

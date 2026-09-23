@@ -1,0 +1,36 @@
+[
+  {
+    "skills": [
+      "evidence-driven-testing"
+    ],
+    "query": "The login redirect bug is fixed on this branch. Prove it works and post the evidence to PR #42.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the evidence-driven-testing skill",
+      "Runs `evidence.py doctor` first and follows the headless path if the toolchain or capture source is missing, without claiming a recording",
+      "Captures the failing 'before' state or references it alongside the fix",
+      "Annotates each check as passed/failed/untested and states the exact commit tested"
+    ]
+  },
+  {
+    "skills": [
+      "evidence-driven-testing"
+    ],
+    "query": "I changed the pagination query; show me it actually reduced request count.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the evidence-driven-testing skill",
+      "Produces a scripted probe with measured before/after numbers saved to a file, not prose claims"
+    ]
+  },
+  {
+    "skills": [
+      "evidence-driven-testing"
+    ],
+    "query": "Explain what a React useEffect cleanup function does.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke the evidence-driven-testing skill"
+    ]
+  }
+]

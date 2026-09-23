@@ -47,19 +47,22 @@ report. Original, self-authored (not from upstream). Use for "audit this project
 
 ### [ux-speed-audit](ux-speed-audit/SKILL.md)
 
-Audits UX responsiveness and page-load speed against Nielsen's response-time
-thresholds (0.1s = instant, 1s = max before flow breaks). Measures live, not from
-source alone — Core Web Vitals, render-blocking resources, bundle size, perceived
-speed, data-layer waterfalls, caching. Original, self-authored. Use for "make it
+Audits page-load speed against Core Web Vitals (LCP ≤ 2.5 s, INP ≤ 200 ms,
+CLS ≤ 0.1 at the 75th percentile) and interaction feedback against Nielsen's
+response-time limits (0.1 s instant, 1 s flow, 10 s attention). Measures live
+on a production build, median of 5 runs — render-blocking resources, bundle
+size, perceived speed, data-layer waterfalls, caching. Original, self-authored. Use for "make it
 feel instant" / loading-speed audits.
 
 ### [no-ai-tells](no-ai-tells/SKILL.md)
 
 Final-pass checklist against comment/structural patterns that read as
-LLM-generated or amateur (redundant comments, banner dividers, staged "Step 1/2"
-narration, task-reference comments, disproportionate defensive completeness,
-naming inconsistent with the surrounding file). Sourced from cross-checked
-research (AI-code-review-tooling writeups), not just opinion. Original,
+LLM-generated or templated (comments that restate code, staged "Step 1/2"
+narration, change-history comments, untracked stubs, disproportionate defensive
+completeness, naming inconsistent with the surrounding file). The structural
+entries match peer-reviewed human-vs-LLM code comparisons (more templated,
+repetitive, generically named, duplicated); the comment entries are
+established readability practice rather than measured AI signatures. Original,
 self-authored. Use as a final pass before finishing any code-writing task.
 
 ### [no-ai-tells-audit](no-ai-tells-audit/SKILL.md)
@@ -98,7 +101,7 @@ existing to reference.
 Long-term memory in an Obsidian vault, loaded by reference instead of by
 value. Hooks archive every session before compaction and at exit — condensed
 to prompts, replies, one line per tool call, and the compaction summaries
-(~98% smaller than the raw transcript), secrets redacted. Session start
+(96–98% smaller than the raw transcript in the sessions measured), secrets redacted. Session start
 injects a ~250-token pointer; everything else is pulled in on demand through
 a zero-dependency Node script (SQLite FTS5/BM25, ~120 ms per search) that
 returns ~60 tokens per hit and reads only the matching line range. Obsidian

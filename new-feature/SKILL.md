@@ -11,13 +11,16 @@ worktree or branch.
 
 ## Harness deltas — read first
 
-- **Claude Code**: the harness creates and manages worktrees itself (under
-  `.claude/worktrees/<name>`). **Skip steps 3–4 below** (no manual
-  `git worktree add` / `remove`), and keep the harness-assigned branch name.
-  Steps 1–2 and 5 still apply.
-- **Cursor-managed worktrees** (branches named `worktree-*`): same idea —
-  keep the assigned branch and worktree, apply steps 2 and 5.
-- Any other harness: follow all steps.
+- **Claude Code**: the harness creates and manages worktrees itself — under
+  `.claude/worktrees/<name>/`, on a branch named `worktree-<name>`, branched
+  from the remote default branch unless `worktree.baseRef` is `"head"`.
+  **Skip steps 3–4 below** (no manual `git worktree add` / `remove`), and
+  keep the harness-assigned branch name. Steps 1–2 and 5 still apply. Make
+  sure `.claude/worktrees/` is gitignored in the repo.
+- **Other harness-managed worktrees** (e.g. Cursor's parallel agents, set up
+  via `.cursor/worktrees.json`): same idea — keep the assigned branch and
+  worktree, apply steps 2 and 5.
+- No harness support: follow all steps.
 
 ## Steps
 

@@ -1,0 +1,36 @@
+[
+  {
+    "skills": [
+      "no-ai-tells-audit"
+    ],
+    "query": "Go through this whole codebase and get rid of the AI tells.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the no-ai-tells-audit skill",
+      "Lists each match with file:line, category, and a specific reason before editing",
+      "Runs understand-before-changing before deleting anything that could be load-bearing",
+      "Runs typecheck/lint/tests after each batch and reports what it deliberately left alone"
+    ]
+  },
+  {
+    "skills": [
+      "no-ai-tells-audit"
+    ],
+    "query": "Make this repo look like it was written by a careful human — it was vibe-coded.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the no-ai-tells-audit skill",
+      "Leaves tracked TODOs, upstream-bug workaround links, and convention-consistent section banners in place"
+    ]
+  },
+  {
+    "skills": [
+      "no-ai-tells-audit"
+    ],
+    "query": "Review my last commit's diff for AI tells.",
+    "files": [],
+    "expected_behavior": [
+      "Prefers the inline no-ai-tells checklist (single diff) over a whole-repo audit"
+    ]
+  }
+]

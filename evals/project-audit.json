@@ -1,0 +1,38 @@
+[
+  {
+    "skills": [
+      "project-audit"
+    ],
+    "query": "Audit this project — how healthy is it?",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the project-audit skill",
+      "Orients on stack and entry points before judging",
+      "Covers OWASP Top 10:2025 categories including software supply chain failures and mishandling of exceptional conditions",
+      "Runs the real test suite and dependency audit tool and reports actual results",
+      "Delivers one severity-ranked list with file:line, a concrete failure scenario, and a fix direction per finding"
+    ]
+  },
+  {
+    "skills": [
+      "project-audit"
+    ],
+    "query": "Give me a prioritized list of what's wrong with this codebase.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the project-audit skill",
+      "Leaves empty severity tiers empty rather than padding with style nits",
+      "Ends with the top 3 highest-leverage fixes"
+    ]
+  },
+  {
+    "skills": [
+      "project-audit"
+    ],
+    "query": "Review this one pull request diff for bugs.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke project-audit; treats it as a diff-scoped code review"
+    ]
+  }
+]

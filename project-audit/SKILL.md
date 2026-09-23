@@ -1,6 +1,6 @@
 ---
 name: project-audit
-description: Use when asked to audit, review, or assess the health of a whole project/codebase — architecture, security, dependencies, test coverage, correctness risk. Use when the user says "audit this project," "review the codebase," "how healthy is this repo," or wants a prioritized findings report rather than a narrow code review of one diff.
+description: Audits a whole codebase — architecture, correctness risk, security (OWASP Top 10:2025), dependencies, tests, operational readiness — and produces a severity-ranked findings report. Use when asked to audit, review, or assess the health of a whole project/codebase — architecture, security, dependencies, test coverage, correctness risk. Use when the user says "audit this project," "review the codebase," "how healthy is this repo," or wants a prioritized findings report rather than a narrow code review of one diff.
 ---
 
 # Project Audit
@@ -18,8 +18,9 @@ rather than trust.
 
 ## Audit sections
 
-Work through these in order. Stop and report after each section rather than
-silently rolling everything into one wall of text at the end.
+Work through these in order, noting findings per section as you go so
+nothing is lost, then merge them into the single ranked list below — the
+deliverable is ranked by severity, not grouped by section.
 
 1. **Architecture** — where does domain logic live vs. shared/reusable mechanics?
    Flag duplicated operational logic across features and god-object services. If
@@ -27,12 +28,19 @@ silently rolling everything into one wall of text at the end.
    explicitly.
 2. **Correctness risk** — read the actual recent commits and the hottest paths
    (auth, payments, data writes) for logic bugs, not just style issues.
-3. **Security** — OWASP top 10 pass: injection, auth/session handling, secrets in
-   code or env files, SSRF, insecure deserialization, missing input validation
-   at trust boundaries.
-4. **Dependencies** — outdated/vulnerable packages (run the ecosystem's audit
-   tool: `npm audit`, `pip-audit`, `cargo audit`, etc.), unused dependencies, and
-   anything pinned to a version with a known CVE.
+3. **Security** — pass over the OWASP Top 10:2025: broken access control
+   (including SSRF, now folded in here), security misconfiguration, software
+   supply chain failures, cryptographic failures, injection, insecure design,
+   authentication failures, software or data integrity failures (including
+   unsafe deserialization), security logging & alerting failures, and
+   mishandling of exceptional conditions (errors that fail open, leak
+   internals, or leave state half-written). Also check for secrets committed
+   to code or env files.
+4. **Dependencies and supply chain** — outdated/vulnerable packages (run the
+   ecosystem's audit tool: `npm audit`, `pip-audit`, `cargo audit`, etc.),
+   unused dependencies, anything pinned to a version with a known CVE, missing
+   or unenforced lockfiles, and install scripts or unpinned CI actions that
+   run third-party code.
 5. **Test coverage** — what's actually tested vs. what only looks tested. Run
    the suite and report the real pass/fail, never an assumed one.
 6. **Simplification/efficiency** — dead code, premature abstraction, N+1

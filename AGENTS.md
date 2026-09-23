@@ -16,7 +16,7 @@ that only reads/measures/reports doesn't.**
 | `no-ai-tells` | Ongoing final-pass discipline applied while writing code | Yes — but as part of the same edit, not a separate process |
 | `evidence-driven-testing` | Verification — capture proof after implementation | Writes output artifacts (video/report), not source |
 | `project-audit` | Diagnostic sweep — architecture/security/deps/tests | No — reports findings |
-| `ux-speed-audit` | Diagnostic sweep — UX/loading performance | No — measures and reports |
+| `ux-speed-audit` | Diagnostic sweep — UX/loading performance | No — measures and reports (needs the machine quiet while measuring) |
 | `no-ai-tells-audit` | Remediation sweep on an existing codebase | **Yes — edits source directly** |
 | `vault-memory` | Ongoing recall — search archived sessions and decision notes instead of re-deriving them | Writes to the Obsidian vault (outside the repo), never source |
 
@@ -54,10 +54,14 @@ Runs in order, one agent/session, single worktree:
 
 Not tied to a specific feature; run this against the whole repo:
 
-1. **`project-audit` and `ux-speed-audit` concurrently** — both are
-   read/measure-first and inspect different concerns (correctness/security/
-   deps vs. performance/UX), so they don't conflict. Run them as two parallel
-   agents/forks against the same snapshot and merge the findings.
+1. **`project-audit` and `ux-speed-audit`** — neither edits source, and they
+   inspect different concerns (correctness/security/deps vs. performance/UX),
+   so they never conflict over files. They do conflict over the machine:
+   `ux-speed-audit`'s numbers are skewed by anything competing for CPU,
+   network, or disk, and `project-audit` runs test suites and dependency
+   audits. Run `ux-speed-audit`'s measurements alone (before or after
+   `project-audit`); its code-reading parts, and all of `project-audit`, can
+   run as parallel agents/forks against the same snapshot. Merge the findings.
 2. **`no-ai-tells-audit` alone, after step 1 finishes** — this one edits
    source directly, so it needs the tree to itself. Don't run it at the same
    time as another skill that's also writing to the same files. Before
@@ -73,7 +77,8 @@ Not tied to a specific feature; run this against the whole repo:
 ## Concurrency rule of thumb
 
 - Multiple report-only skills against the same codebase → safe to
-  parallelize freely.
+  parallelize, with one exception: performance measurement needs a quiet
+  machine, so nothing heavy runs alongside `ux-speed-audit`'s measuring.
 - Any skill that writes to source files → run it alone, or give it its own
   worktree (via `new-feature`'s pattern) if it truly needs to run alongside
   other in-flight edits. Never point two file-mutating skills at the same

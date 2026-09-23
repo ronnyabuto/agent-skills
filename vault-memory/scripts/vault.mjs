@@ -75,12 +75,23 @@ const SECRET_PATTERNS = [
   /\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@]+:[^\s@/]+@/gi,
 ];
 const SECRET_ASSIGNMENT =
-  /\b([A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|CREDENTIALS?|CONSUMER_KEY|PASSKEY)[A-Z0-9_]*)(\s*[:=]\s*)(["']?)[^\s"']{6,}\3/gi;
+  /\b([A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|CREDENTIALS?|CONSUMER_KEY|PASSKEY)[A-Z0-9_]*)(\s*[:=]\s*)(["']?)([^\s"']{6,})\3/gi;
+
+// The key names above also appear in prose and metrics ("context_tokens:
+// 182340", "password: required"), so only redact values shaped like a secret:
+// never pure numbers, and plain words only when long enough to be a passphrase.
+function looksSecret(value) {
+  if (/^\d+$/.test(value)) return false;
+  if (/^[A-Za-z]+$/.test(value)) return value.length >= 16;
+  return value.length >= 8;
+}
 
 function redact(text) {
   let out = text;
   for (const re of SECRET_PATTERNS) out = out.replace(re, "[REDACTED]");
-  return out.replace(SECRET_ASSIGNMENT, "$1$2[REDACTED]");
+  return out.replace(SECRET_ASSIGNMENT, (match, key, sep, quote, value) =>
+    looksSecret(value) ? `${key}${sep}${quote}[REDACTED]${quote}` : match,
+  );
 }
 
 function locateTranscript(payload) {
@@ -528,7 +539,7 @@ function recallBlock(payload) {
   const script = path.resolve(process.argv[1]);
 
   const lines = [
-    `Vault memory: ${VAULT} (${total} notes for project "${project}"). Search it before re-deriving past decisions or re-reading large files:`,
+    `Vault memory: ${VAULT} (${total} notes for project "${project}"). Search it only when the task depends on an earlier session — a past decision, a prior attempt, or detail lost to compaction:`,
     `  node ${script} search "<terms>" --project ${project}`,
     `  node ${script} read <path> --lines A:B`,
   ];

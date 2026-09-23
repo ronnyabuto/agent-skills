@@ -1,0 +1,35 @@
+[
+  {
+    "skills": [
+      "vault-memory"
+    ],
+    "query": "Why did we decide not to use MemPalace last time?",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the vault-memory skill",
+      "Runs vault.mjs search with a few distinctive terms scoped to the project",
+      "Reads only the matching line range, then answers citing the note path and date"
+    ]
+  },
+  {
+    "skills": [
+      "vault-memory"
+    ],
+    "query": "We just compacted — what was the exact error message we hit before the summary?",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the vault-memory skill",
+      "Searches the pre-compaction session archive named in the SessionStart context instead of redoing the work"
+    ]
+  },
+  {
+    "skills": [
+      "vault-memory"
+    ],
+    "query": "What does this repo's AGENTS.md say about concurrency?",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke vault-memory; reads AGENTS.md directly since the repo answers it"
+    ]
+  }
+]

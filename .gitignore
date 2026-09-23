@@ -3,6 +3,12 @@ evidence.mp4
 manifest.json
 report.md
 *.ts
+.artifacts/
 
 # vault-memory archives (AGENT_VAULT points at this repo); they hold session transcripts
 claude/
+# Obsidian's per-vault app state, created when this repo is opened as a vault
+.obsidian/
+
+# harness-managed worktrees (new-feature)
+.claude/worktrees/

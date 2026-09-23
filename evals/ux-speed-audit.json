@@ -1,0 +1,37 @@
+[
+  {
+    "skills": [
+      "ux-speed-audit"
+    ],
+    "query": "Why does our dashboard feel slow? Audit it.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the ux-speed-audit skill",
+      "Measures a production build live rather than reading code only",
+      "Reports LCP, INP, and CLS against Core Web Vitals thresholds (2.5 s / 200 ms / 0.1) and does not report FID",
+      "Uses the median of at least 5 runs on an otherwise idle machine",
+      "Does not label every >1 s interaction a failure; checks for immediate feedback instead"
+    ]
+  },
+  {
+    "skills": [
+      "ux-speed-audit"
+    ],
+    "query": "Make the settings page feel instant.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the ux-speed-audit skill",
+      "Checks that interactions acknowledge input within ~100 ms and ranks findings by user-perceived impact"
+    ]
+  },
+  {
+    "skills": [
+      "ux-speed-audit"
+    ],
+    "query": "Our SQL migration is slow to write — help me structure it.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke ux-speed-audit"
+    ]
+  }
+]

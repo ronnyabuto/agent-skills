@@ -35,6 +35,12 @@ technology's current surface, not a blanket lookup tax on every task.
      navigate to the matching release explicitly.
    - If docs for that exact version aren't available, fetch the closest
      adjacent minor/patch and say so — don't silently substitute latest.
+   - Verify exact values against the raw text. A fetch tool that summarizes
+     pages through a model can paraphrase limits, defaults, and field names
+     wrong — confidently. When a number, flag, or field name matters, pull the
+     page's raw source (many docs sites serve a Markdown copy at the page URL
+     plus `.md`, and index pages at `/llms.txt`) and grep for the exact value
+     before relying on it.
 3. **New or unpinned dependency** (nothing installed yet, greenfield choice):
    fetch latest docs — there's no existing version constraint to respect.
 4. **Implement against what the docs say**, not what memory suggests. Where

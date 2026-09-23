@@ -8,7 +8,7 @@ description: >
   verifiable evidence that it works, instead of prose claims — including
   headless environments (scripted screenshots and probes) and non-UI changes
   (measured numbers, output pairs).
-compatibility: Screen-recording path requires a GUI environment the agent can drive — built-in computer use, or the cua-driver CLI (trycua/cua) when the harness has no computer-use tools — plus an authenticated browser session for the app under test. The bundled recorder (scripts/evidence.py) runs on Linux (X11 via x11grab, Wayland via wf-recorder), macOS (avfoundation, needs Screen Recording permission) and Windows (gdigrab) and needs Python 3 plus ffmpeg + ffprobe built with libx264 and the ass filter. The headless path requires only a running app and a scriptable browser (e.g. Playwright via npx). Posting evidence requires gh (GitHub CLI) or equivalent.
+compatibility: Recording needs a drivable GUI (computer use or cua-driver), Python 3, and ffmpeg/ffprobe with libx264 and the ass filter; scripts/evidence.py captures on Linux (x11grab, wf-recorder), macOS (avfoundation) and Windows (gdigrab). The headless path needs only the running app and a scriptable browser (e.g. Playwright via npx). Posting needs gh or equivalent.
 metadata:
   version: "1.2"
 ---
@@ -80,8 +80,10 @@ Python 3 and FFmpeg.
   `setup` / `test_start` / `assertion` with its result and the approximate
   video timestamp, exactly as in the headless path.
 - **Never** present `--source test` (the synthetic pattern generator) as UI
-  evidence. It exists to smoke-test the toolchain; the repo's
-  `tests/test_evidence.py` exercises it.
+  evidence. It exists to smoke-test the toolchain.
+- **Toolchain missing** (`doctor` exits non-zero): install ffmpeg from the
+  OS package manager and rerun `doctor`. If that isn't possible in this
+  environment, use the headless path below — don't claim a recording.
 
 ## Instructions
 
@@ -177,9 +179,8 @@ Python 3 and FFmpeg.
 - Post the video + summary as a PR comment (embed in the PR description if
   it's your PR). `gh pr comment` cannot attach a local video — upload
   `evidence.mp4` through the PR's comment box in an authenticated browser, or
-  upload it to a host and link it (for example the `before-and-after` upload
-  adapters). Reopen the comment and confirm the video plays before claiming it
-  is posted.
+  upload it to a host you control and link it. Reopen the comment and confirm
+  the video plays before claiming it is posted.
 - Attach the same video to the tracker issue (Linear/Jira) with a one-line result.
 - Send the report + recording to the requester.
 
@@ -234,10 +235,9 @@ swap the recorder for scripted capture:
 - Save everything to `.artifacts/<task-name>/` (gitignore it — evidence gets
   uploaded, never committed). Keep the capture script beside the captures so
   the run is repeatable.
-- **Screenshots**: the `before-and-after` CLI (`@vercel/before-and-after`)
-  captures URLs or elements and its pairs feed PR embeds directly. In
-  containers/VMs where Chrome fails with "No usable sandbox", set
-  `AGENT_BROWSER_ARGS="--no-sandbox"`.
+- **Screenshots**: capture with the same one-off Playwright script
+  (`await page.screenshot({ path: ".artifacts/<task-name>/01-....png" })`,
+  or `locator.screenshot()` for one element).
 - **Video / multi-step flows**: a one-off Playwright script, run without
   adding playwright to the project's dependencies:
 
@@ -289,5 +289,6 @@ swap the recorder for scripted capture:
   `ps -p <pid> -o args=` to confirm it's yours.
 - Evidence complements the repo's checks (typecheck/build/tests); it never
   replaces them.
-- Hand before/after media pairs to a before/after tool for the PR embed
-  (e.g. `before-and-after before.png after.png --markdown`).
+- For the PR embed, put before/after images side by side in a Markdown
+  table (`| Before | After |`), with the images uploaded through the PR's
+  comment box.

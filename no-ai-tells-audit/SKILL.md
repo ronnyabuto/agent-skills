@@ -1,6 +1,6 @@
 ---
 name: no-ai-tells-audit
-description: Use when asked to sweep an existing codebase for AI-generated/vibe-coded/junior-level tells and remove them — a full-repo remediation pass, not the always-on final-pass discipline of no-ai-tells. Use for "clean up this codebase," "get rid of AI tells," "make this look hand-written."
+description: Sweeps an existing codebase for the no-ai-tells patterns, gates each removal through understand-before-changing, edits the source, and verifies nothing broke. Use when asked to sweep an existing codebase for AI-generated/vibe-coded/junior-level tells and remove them — a full-repo remediation pass, not the always-on final-pass discipline of no-ai-tells. Use for "clean up this codebase," "get rid of AI tells," "make this look hand-written."
 ---
 
 # No AI Tells — Codebase Audit
@@ -18,16 +18,21 @@ rules before running it alongside other in-flight work.
 **Comments:**
 - Restates the line instead of explaining why (`// increment counter` above `i++`)
 - Explains *what* instead of the non-obvious *why*
-- Banner/divider comments (`# ===== Section =====`) inside a file
+- Banner/divider comments (`# ===== Section =====`) in a file or codebase that
+  doesn't otherwise use them — some codebases use section banners on purpose
 - Comments spread evenly everywhere instead of clustering at genuinely hard
   decision points — and the inverse: real complexity left unexplained while
   trivial lines get commented
-- Task/fix references tied to history (`// fixed for issue #123`, `// added
-  for the new signup flow`) — that belongs in the commit message, not the file
+- Change-history references (`// fixed for issue #123`, `// added for the new
+  signup flow`) — that belongs in the commit message, not the file. Keep links
+  to an upstream bug that a live workaround depends on (`// works around
+  foo#123; remove once fixed`) — they say when the code can go
 - Removed-code narration (`// no longer using X`, `// removed old validation`)
 - Staged/phased narration (`// Step 1: validate`, `// Step 2: process`) instead
   of just writing the steps as code
-- Leftover TODO/placeholder/stub comments in code that's actually shipped
+- Untracked TODO/placeholder/stub comments in code that's actually shipped.
+  A tracked TODO — owner or issue ID plus a removal condition — is standard
+  practice (Google's C++ style guide recommends that form); leave it
 - Apologetic or hedging comments ("this might not be the best way but...")
 - Generic, context-free phrasing that doesn't match this codebase's actual tone
 

@@ -1,0 +1,37 @@
+[
+  {
+    "skills": [
+      "understand-before-changing"
+    ],
+    "query": "Delete this weird extra null check in payments/charge.ts, it looks redundant.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the understand-before-changing skill before deleting",
+      "Checks git blame/log, tests, and comments for why the check exists",
+      "Classifies it as confirmed-valid, outdated, or undeterminable and states which",
+      "If undeterminable, makes the smallest safe change and flags the uncertainty rather than inventing a reason"
+    ]
+  },
+  {
+    "skills": [
+      "understand-before-changing"
+    ],
+    "query": "Add a new validation branch to the existing request parser in api/parse.ts.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the understand-before-changing skill",
+      "Follows the validation/error-handling pattern already used in the file rather than introducing a competing one",
+      "Keeps the investigation proportional to a low-risk addition"
+    ]
+  },
+  {
+    "skills": [
+      "understand-before-changing"
+    ],
+    "query": "Create a brand new file utils/slugify.ts with a slugify function.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke understand-before-changing (nothing existing to investigate)"
+    ]
+  }
+]

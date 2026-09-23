@@ -1,0 +1,37 @@
+[
+  {
+    "skills": [
+      "no-ai-tells"
+    ],
+    "query": "Here's the function I just wrote — finalize it before I commit.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the no-ai-tells skill as a final pass",
+      "Removes comments that restate the line and keeps ones that explain a non-obvious why",
+      "Keeps a tracked TODO with an issue ID and a link to an upstream bug behind a live workaround",
+      "Checks naming against the surrounding file's convention"
+    ]
+  },
+  {
+    "skills": [
+      "no-ai-tells"
+    ],
+    "query": "This file is full of `// Step 1:` / `// Step 2:` comments and a `step1Result` variable. Clean it up.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the no-ai-tells skill",
+      "Removes staged narration and renames phase-named identifiers to describe what they are",
+      "Does not change behavior"
+    ]
+  },
+  {
+    "skills": [
+      "no-ai-tells"
+    ],
+    "query": "Sweep the entire monorepo and remove AI-looking comments everywhere.",
+    "files": [],
+    "expected_behavior": [
+      "Prefers the no-ai-tells-audit skill (whole-repo remediation) over the inline no-ai-tells pass"
+    ]
+  }
+]
