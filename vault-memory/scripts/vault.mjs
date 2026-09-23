@@ -534,6 +534,8 @@ function recallBlock(payload) {
     )
     .all(project);
   const total = db.prepare("SELECT COUNT(*) AS n FROM files WHERE project = ?").get(project).n;
+  // An empty pointer still steers the model into searching; say nothing instead.
+  if (total === 0) return "";
   // argv[1] keeps the symlinked install path; import.meta resolves through it
   // to wherever the checkout happens to live.
   const script = path.resolve(process.argv[1]);
