@@ -141,23 +141,37 @@ line) still needs a human read of the transcript.
 
 ## Installing (per machine)
 
-Symlink each skill folder — or the whole repo — into the client's skills directory so
-edits here take effect immediately everywhere:
-
 ```bash
-# Claude Code (global, all projects)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs understand-before-changing vault-memory; do
-  ln -s ~/Desktop/agent-skills/$skill ~/.claude/skills/$skill
-done
-
-# Antigravity (global, all workspaces)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs understand-before-changing vault-memory; do
-  ln -s ~/Desktop/agent-skills/$skill ~/.gemini/antigravity/skills/$skill
-done
+git clone https://github.com/ronnyabuto/agent-skills.git
+cd agent-skills
+./install.sh
 ```
 
-Project-scoped instead of global: symlink into `.claude/skills/` or `.agents/skills/`
-inside a specific repo instead.
+Or open Claude Code in the cloned folder and ask it to set things up —
+`AGENTS.md` tells it to check whether the skills are installed and offer to
+run the script (it asks before changing your settings).
+
+`install.sh` symlinks every skill folder into `~/.claude/skills/` (and
+`~/.gemini/antigravity/skills/` if Antigravity is installed), so edits here
+take effect everywhere immediately. It then asks where vault-memory's vault
+should live and merges the hooks plus `AGENT_VAULT` into
+`~/.claude/settings.json`, backing the file up first. It's safe to re-run,
+never overwrites a skill folder you already have, and warns if the vault
+sits in a git repo that would commit the session archives.
+
+| Flag | Effect |
+|---|---|
+| `--vault <path>` | Set the vault without prompting |
+| `--no-hooks` | Link the skills only; leave `settings.json` alone |
+| `--dry-run` | Print what would change |
+| `--uninstall` | Remove the links and hooks it added (vault notes are kept) |
+
+Requirements: bash, and Node ≥ 22.5 for vault-memory's hooks. Obsidian is
+optional — the vault is plain Markdown; open it in Obsidian only to browse.
+`evidence-driven-testing` additionally wants ffmpeg for screen recording.
+
+Project-scoped instead of global: symlink skill folders into `.claude/skills/`
+or `.agents/skills/` inside a specific repo instead.
 
 ## Adding a new skill
 

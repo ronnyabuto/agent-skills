@@ -82,6 +82,11 @@ hidden unless `--all` is passed.
 
 ## Setup (once per machine)
 
+If `~/.claude/settings.json` has no hook running `vault.mjs hook`, sessions
+aren't being archived. The
+repo's `install.sh` does steps 1–2 (ask the user before running it — it
+edits their global settings):
+
 1. Merge [references/hooks.json](references/hooks.json) into
    `~/.claude/settings.json`. Hooks declared in skill frontmatter only
    register after the skill is invoked, so session-wide archiving has to
