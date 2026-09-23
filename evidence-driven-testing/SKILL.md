@@ -5,9 +5,10 @@ description: >
   hands-on via computer use while a screen recording with structured
   test/assertion annotations captures the session — then posts the video and a
   results summary to the PR and tracker issue. Use whenever a change needs
-  verifiable evidence that it works, instead of prose claims — including
+  verifiable evidence that it works, instead of prose claims — "prove it
+  works," "show me it actually improved," before/after numbers — including
   headless environments (scripted screenshots and probes) and non-UI changes
-  (measured numbers, output pairs).
+  (measured request counts, latency, output pairs).
 compatibility: Recording needs a drivable GUI (computer use or cua-driver), Python 3, and ffmpeg/ffprobe with libx264 and the ass filter; scripts/evidence.py captures on Linux (x11grab, wf-recorder), macOS (avfoundation) and Windows (gdigrab). The headless path needs only the running app and a scriptable browser (e.g. Playwright via npx). Posting needs gh or equivalent.
 metadata:
   version: "1.2"

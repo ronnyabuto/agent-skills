@@ -1,6 +1,6 @@
 ---
 name: no-ai-tells
-description: Strips comment and structural patterns that read as LLM-generated, over-commented, or templated — comments that restate code, change-history narration, untracked stubs, generic names, near-duplicate blocks — so code reads as written by someone who knows this codebase. Use as a final pass before finishing any code-writing task, and whenever asked to clean up, review, or remove "AI tells"/vibecoded signs from code.
+description: Strips comment and structural patterns that read as LLM-generated, over-commented, or templated — comments that restate code, change-history narration, untracked stubs, generic names, near-duplicate blocks — so code reads as written by someone who knows this codebase. Use as a final pass before finishing, finalizing, or committing any code-writing task, and whenever asked to clean up, tidy, or polish a file's comments — over-commenting, "// Step 1:" narration, placeholder names — or to remove "AI tells"/vibecoded signs from code.
 ---
 
 # No AI Tells

@@ -1,6 +1,6 @@
 ---
 name: new-feature
-description: Start a new task in an isolated Git worktree branched from origin/main so multiple agents can work on the same repo in parallel without conflicts. Use at the beginning of every new feature, fix, or task — before writing any code.
+description: Starts a new task in an isolated Git worktree branched from origin/main so multiple agents can work on the same repo in parallel without conflicts. Use at the beginning of every new feature, bug fix, or task in a git repo — including small fixes like "fix the off-by-one in X" — before editing any file.
 ---
 
 # New Feature

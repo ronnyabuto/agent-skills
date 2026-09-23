@@ -1,6 +1,6 @@
 ---
 name: understand-before-changing
-description: Use whenever a task touches an already-existing file — editing, deleting, or adding to code that's already there. Before making the change, investigate why the existing implementation is the way it is (git blame/log, commit messages, linked issues/PRs, tests, comments), then explicitly classify what you found as confirmed-valid, outdated/wrong, or undeterminable, and let that classification drive the change instead of guessing. Not for a brand new file/module with nothing existing to reference.
+description: Use whenever a task touches an already-existing file — editing, deleting, or adding to code that's already there — and especially before removing code that looks weird, redundant, or unnecessary. Before making the change, investigate why the existing implementation is the way it is (git blame/log, commit messages, linked issues/PRs, tests, comments), then explicitly classify what you found as confirmed-valid, outdated/wrong, or undeterminable, and let that classification drive the change instead of guessing. Not for a brand new file/module with nothing existing to reference.
 ---
 
 # Understand Before Changing
