@@ -93,6 +93,19 @@ gates `no-ai-tells-audit` before it deletes anything. Original,
 self-authored. Only exempt for a genuinely new file/module with nothing
 existing to reference.
 
+### [vault-memory](vault-memory/SKILL.md)
+
+Long-term memory in an Obsidian vault, loaded by reference instead of by
+value. Hooks archive every session before compaction and at exit — condensed
+to prompts, replies, one line per tool call, and the compaction summaries
+(~98% smaller than the raw transcript), secrets redacted. Session start
+injects a ~250-token pointer; everything else is pulled in on demand through
+a zero-dependency Node script (SQLite FTS5/BM25, ~120 ms per search) that
+returns ~60 tokens per hit and reads only the matching line range. Obsidian
+doesn't need to be running. Needs Node >= 22.5 and the hook snippet in
+[references/hooks.json](vault-memory/references/hooks.json) merged into
+`~/.claude/settings.json`. Original, self-authored.
+
 ## How these fit together
 
 [AGENTS.md](AGENTS.md) defines the actual orchestration: which skills run in
@@ -110,12 +123,12 @@ edits here take effect immediately everywhere:
 
 ```bash
 # Claude Code (global, all projects)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs understand-before-changing; do
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs understand-before-changing vault-memory; do
   ln -s ~/Desktop/agent-skills/$skill ~/.claude/skills/$skill
 done
 
 # Antigravity (global, all workspaces)
-for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs understand-before-changing; do
+for skill in code-structure new-feature evidence-driven-testing project-audit ux-speed-audit no-ai-tells no-ai-tells-audit current-docs understand-before-changing vault-memory; do
   ln -s ~/Desktop/agent-skills/$skill ~/.gemini/antigravity/skills/$skill
 done
 ```

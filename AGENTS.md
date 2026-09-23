@@ -1,6 +1,6 @@
 # Skill Orchestration
 
-How these 9 skills relate — what has to run in order, and what's safe to run
+How these 10 skills relate — what has to run in order, and what's safe to run
 at the same time. The dividing line is simple: **anything that writes to
 source files needs exclusive access to the tree it's writing to. Anything
 that only reads/measures/reports doesn't.**
@@ -18,6 +18,7 @@ that only reads/measures/reports doesn't.**
 | `project-audit` | Diagnostic sweep — architecture/security/deps/tests | No — reports findings |
 | `ux-speed-audit` | Diagnostic sweep — UX/loading performance | No — measures and reports |
 | `no-ai-tells-audit` | Remediation sweep on an existing codebase | **Yes — edits source directly** |
+| `vault-memory` | Ongoing recall — search archived sessions and decision notes instead of re-deriving them | Writes to the Obsidian vault (outside the repo), never source |
 
 ## Sequence 1 — building a new feature or fix
 
@@ -36,12 +37,18 @@ Runs in order, one agent/session, single worktree:
      already-existing file, in *any* of the three ways: editing it,
      deleting from it, or adding new code into it. Only genuinely new
      files/modules with nothing existing to reference are exempt.
+     `vault-memory` is one more source for its investigation: past
+     sessions often hold the "why" that never made it into a commit
+     message.
    - `code-structure` for where new logic belongs (action vs. service
      layer).
    - `no-ai-tells` as the final pass before considering any code-writing
      step done.
 4. **`evidence-driven-testing`** — once the change works and tests pass,
    capture proof.
+5. **`vault-memory`**, only if the task settled a decision a future session
+   would otherwise rediscover — file a note. The session itself is archived
+   by hooks; don't duplicate it.
 
 ## Sequence 2 — auditing or cleaning an existing codebase
 
@@ -72,3 +79,7 @@ Not tied to a specific feature; run this against the whole repo:
   other in-flight edits. Never point two file-mutating skills at the same
   worktree at the same time — that's the exact conflict `new-feature` exists
   to prevent.
+- `vault-memory` writes only under the vault's `claude/` folder, never to
+  source, so it's safe alongside everything. Concurrent sessions archive to
+  separate files; the one collision is two sessions filing a note with the
+  same title, where the last write wins.

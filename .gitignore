@@ -3,3 +3,6 @@ evidence.mp4
 manifest.json
 report.md
 *.ts
+
+# vault-memory archives (AGENT_VAULT points at this repo); they hold session transcripts
+claude/
