@@ -1,6 +1,6 @@
 ---
 name: code-structure
-description: Separates actions (domain rules, the when/why) from a shared service layer (reusable operational mechanics, the how), extracting only proven duplication. Use when multiple workflows duplicate the same operational logic, when deciding what belongs in actions vs shared services, or when refactoring repeated operational blocks across domain flows. Use when adding new features that share mechanics with existing ones. Also use when adding code to an existing codebase, to decide whether it belongs in an existing file or a new one and to keep the change to what was asked — no speculative options, single-implementation abstractions, or unrequested refactors.
+description: Decides where new code goes and how much to build. Extend the existing file that owns the behavior instead of creating a new file, build only what was asked (no speculative options, single-implementation abstractions, or unrequested refactors), and move shared mechanics into a service layer only at proven duplication, keeping domain rules (the when/why) in actions. Use before writing code that adds a feature, button, endpoint, field, option, or export to an existing codebase. Also use when multiple workflows duplicate the same operational logic, when deciding what belongs in actions vs shared services, or when refactoring repeated operational blocks across domain flows.
 ---
 
 # Service Layer Architecture
