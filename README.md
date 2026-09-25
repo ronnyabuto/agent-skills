@@ -21,9 +21,11 @@ own workflow the diff from upstream will grow; until then, treat the content as
 ### [code-structure](code-structure/SKILL.md)
 
 Service layer architecture guidance — separates **actions** (orchestrate domain rules)
-from a **service layer** (reusable operational mechanics). Use when multiple workflows
-duplicate the same operational logic, or when deciding what belongs in actions vs.
-shared services.
+from a **service layer** (reusable operational mechanics), plus a scope rule: new code
+goes in the existing file that owns the behavior unless there's a stated reason for a
+new one, and nothing gets built that wasn't asked for. Use when multiple workflows
+duplicate the same operational logic, when deciding what belongs in actions vs.
+shared services, or when deciding where new code goes.
 
 ### [new-feature](new-feature/SKILL.md)
 
@@ -121,9 +123,9 @@ edits source directly).
 
 ## Evals
 
-`evals/<skill>.json` holds three scenarios per skill in Anthropic's
-documented format (`skills`, `query`, `files`, `expected_behavior`): two that
-should trigger the skill and one near-miss that shouldn't. The trigger check
+`evals/<skill>.json` holds three or four scenarios per skill in Anthropic's
+documented format (`skills`, `query`, `files`, `expected_behavior`): cases
+that should trigger the skill and one near-miss that shouldn't. The trigger check
 runs each query in a fresh headless session inside a throwaway fixture repo
 and records which skills it invokes:
 

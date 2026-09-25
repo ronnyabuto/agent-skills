@@ -1,6 +1,6 @@
 ---
 name: code-structure
-description: Separates actions (domain rules, the when/why) from a shared service layer (reusable operational mechanics, the how), extracting only proven duplication. Use when multiple workflows duplicate the same operational logic, when deciding what belongs in actions vs shared services, or when refactoring repeated operational blocks across domain flows. Use when adding new features that share mechanics with existing ones.
+description: Separates actions (domain rules, the when/why) from a shared service layer (reusable operational mechanics, the how), extracting only proven duplication. Use when multiple workflows duplicate the same operational logic, when deciding what belongs in actions vs shared services, or when refactoring repeated operational blocks across domain flows. Use when adding new features that share mechanics with existing ones. Also use when adding code to an existing codebase, to decide whether it belongs in an existing file or a new one and to keep the change to what was asked — no speculative options, single-implementation abstractions, or unrequested refactors.
 ---
 
 # Service Layer Architecture
@@ -19,6 +19,34 @@ This prevents duplicated code, inconsistent behavior, and bugs fixed in one path
 - Adding a new feature that shares mechanics with existing flows
 
 **Don't use when:** Logic is truly domain-specific and used by only one caller.
+
+## Scope and Placement
+
+Settle these before writing anything; they're the cheapest point to keep a
+change small.
+
+**Where it goes:** into the existing file that already owns the behavior,
+extended in that file's style (read it first — `understand-before-changing`).
+Create a new file only when:
+
+- nothing existing owns the concern,
+- it's a rule-of-three extraction into the service layer (below),
+- the project's convention gives it its own file (tests, migrations, routes,
+  one-component-per-file), or
+- the addition would bolt an unrelated concern onto the existing file.
+
+"It keeps my diff tidy" isn't on the list — a module the next reader has to
+go find costs more than a few lines where they'd already look.
+
+**How much to build:** what was asked, done correctly — nothing speculative.
+
+- No options, flags, or config for variations nobody requested.
+- No interface, base class, or factory with a single implementation.
+- No refactoring or cleanup of surrounding code during a fix; mention it
+  instead.
+
+Small isn't the goal on its own: keep validation at real boundaries, error
+handling on real failure paths, and the test the change needs to be trusted.
 
 ## Core Pattern
 
@@ -110,6 +138,7 @@ await sendWelcomeEmail({ to: invitee.email, name: invitee.name });
 ## Mental Model
 
 ```
+New code?    → The existing file that owns it, unless a new-file condition above holds
 New feature? → Write in action first → Third copy of the same op? → Extract to service
                                       → Two copies?  → Tolerate it, note it
                                       → One copy?    → Keep in action
