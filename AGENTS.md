@@ -59,8 +59,8 @@ Runs in order, one agent/session, single worktree:
      `vault-memory` is one more source for its investigation: past
      sessions often hold the "why" that never made it into a commit
      message.
-   - `code-structure` for where new logic belongs (action vs. service
-     layer).
+   - `code-structure` for where new logic belongs (existing file vs. new
+     one, action vs. service layer) and how much of it to build.
    - `no-ai-tells` as the final pass before considering any code-writing
      step done.
 4. **`evidence-driven-testing`** — once the change works and tests pass,

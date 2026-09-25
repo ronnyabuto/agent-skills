@@ -77,6 +77,12 @@ anything, earns a comment — don't decide comment-by-comment on a first pass.
   input re-validated, when the actual failure modes don't justify it (e.g.
   re-validating data already validated one layer up). Completeness is good;
   completeness *in excess of real risk* is a tell.
+- **Speculative generality** — structure built for requirements nobody
+  stated: a new module for a helper called once, a `utils/` file holding one
+  function, a flag or config option no caller sets, an interface or factory
+  with one implementation. The tell is flexibility with no second user; fold
+  it back into the file that already owns the behavior. (The placement rule
+  lives in the `code-structure` skill.)
 - **Naming inconsistent with the surrounding file** — `userAuthenticationService`
   dropped into a file that abbreviates everywhere else, or vice versa. The tell
   is the mismatch, not verbosity or brevity in isolation.

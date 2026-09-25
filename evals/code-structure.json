@@ -28,6 +28,18 @@
     "skills": [
       "code-structure"
     ],
+    "query": "Add a CSV export button to the orders report. The report handler already builds the rows for the HTML table.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the code-structure skill",
+      "Adds the export to the existing report handler that already builds the rows, rather than creating a new exporter module",
+      "Does not add a format registry, plugin hook, or options for other export formats nobody asked for"
+    ]
+  },
+  {
+    "skills": [
+      "code-structure"
+    ],
     "query": "Rename the variable `usr` to `user` in src/profile.ts.",
     "files": [],
     "expected_behavior": [
