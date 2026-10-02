@@ -9,7 +9,8 @@
       "Invokes the new-feature skill before writing any code",
       "Fetches origin and checks open PRs / uncommitted work for scope conflicts",
       "Works in an isolated worktree on a new branch, not on main",
-      "In Claude Code, uses the harness worktree (.claude/worktrees/<name>, branch worktree-<name>) instead of a manual git worktree add"
+      "In Claude Code, retains an assigned harness worktree only after fetching and verifying its base; requests or creates a worktree if none was assigned",
+      "Records freshly fetched origin/main and verifies the new branch starts at that commit before editing"
     ]
   },
   {
@@ -32,6 +33,64 @@
     "expected_behavior": [
       "Does not invoke the new-feature skill",
       "Answers the question directly without creating a worktree"
+    ]
+  },
+  {
+    "skills": [
+      "new-feature"
+    ],
+    "query": "Start a new fix. Local main is two commits behind origin/main.",
+    "files": [],
+    "expected_behavior": [
+      "Fetches origin successfully before creating the branch",
+      "Creates the new task branch at the fetched origin/main commit rather than local main",
+      "Does not pull, reset, or check out local main just to create the task branch"
+    ]
+  },
+  {
+    "skills": [
+      "new-feature"
+    ],
+    "query": "Start this hotfix from release/2026.10, not main.",
+    "files": [],
+    "expected_behavior": [
+      "Fetches and resolves the requested release branch",
+      "Creates and verifies the task branch at the release commit",
+      "Preserves the explicit base rather than substituting origin/main"
+    ]
+  },
+  {
+    "skills": [
+      "new-feature"
+    ],
+    "query": "Start a new task; git fetch origin failed but origin/main is cached.",
+    "files": [],
+    "expected_behavior": [
+      "Reports the fetch failure and asks for direction",
+      "Does not silently use the cached ref or local HEAD as the task base"
+    ]
+  },
+  {
+    "skills": [
+      "new-feature"
+    ],
+    "query": "Claude assigned a clean, unused worktree before fetching; its HEAD is older than freshly fetched origin/main. Begin the fix.",
+    "files": [],
+    "expected_behavior": [
+      "Detects the starting commit mismatch before editing",
+      "Resolves the stale harness base using supported worktree operations, preserving any work",
+      "Does not treat the harness assignment as proof of freshness"
+    ]
+  },
+  {
+    "skills": [
+      "new-feature"
+    ],
+    "query": "Continue fixing PR #12 on its existing branch with uncommitted changes.",
+    "files": [],
+    "expected_behavior": [
+      "Preserves the existing task branch and uncommitted work",
+      "Does not restart the PR from origin/main merely because the skill normally creates fresh task branches"
     ]
   }
 ]

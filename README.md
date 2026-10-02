@@ -29,8 +29,9 @@ shared services, or when deciding where new code goes.
 
 ### [new-feature](new-feature/SKILL.md)
 
-Starts every new task in an isolated Git worktree branched from `origin/main` — unique
-task naming, a scope check against open PRs, cleanup after merge. Use at the start of
+Starts every new task in an isolated Git worktree branched from freshly fetched `origin/main`
+(or an explicitly requested release/PR base) — verifies the starting commit,
+uses unique task names, checks open PR scope, and cleans up after merge. Use at the start of
 any new feature/fix/task, or when running multiple agent sessions on the same repo.
 
 ### [evidence-driven-testing](evidence-driven-testing/SKILL.md)

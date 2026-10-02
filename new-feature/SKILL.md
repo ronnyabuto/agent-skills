@@ -1,30 +1,44 @@
 ---
 name: new-feature
-description: Starts a new task in an isolated Git worktree branched from origin/main so multiple agents can work on the same repo in parallel without conflicts. Use at the beginning of every new feature, bug fix, or task in a git repo — including small fixes like "fix the off-by-one in X" — before editing any file.
+description: Starts a new task in an isolated Git worktree branched from freshly fetched origin/main (or an explicitly requested release/PR base) so multiple agents can work on the same repo in parallel without conflicts. Use at the beginning of every new feature, bug fix, or task in a git repo — including small fixes like "fix the off-by-one in X" — before editing any file.
 ---
 
 # New Feature
 
 Every task gets its own worktree and branch, created from the latest
-`origin/main`. Never build on `main`, and never reuse another agent's
-worktree or branch.
+`origin/main` by default. Preserve an explicitly requested release branch,
+PR head, or other base instead. Never build on `main`, and never reuse
+another agent's worktree or branch.
 
 ## Harness deltas — read first
 
-- **Claude Code**: the harness creates and manages worktrees itself — under
-  `.claude/worktrees/<name>/`, on a branch named `worktree-<name>`, branched
-  from the remote default branch unless `worktree.baseRef` is `"head"`.
-  **Skip steps 3–4 below** (no manual `git worktree add` / `remove`), and
-  keep the harness-assigned branch name. Steps 1–2 and 5 still apply. Make
-  sure `.claude/worktrees/` is gitignored in the repo.
-- **Other harness-managed worktrees** (e.g. Cursor's parallel agents, set up
-  via `.cursor/worktrees.json`): same idea — keep the assigned branch and
-  worktree, apply steps 2 and 5.
+- **Claude Code**: when a worktree was assigned by `--worktree` or
+  `EnterWorktree`, keep its branch and directory. Skip steps 3–4 only after
+  checking it against the freshly fetched base in steps 1 and 5. Ordinary
+  sessions do not automatically get a worktree; request one or follow the
+  manual steps. Make sure `.claude/worktrees/` is gitignored.
+- **Other harness-managed worktrees**: keep the assigned branch and
+  directory, but apply the same fetch and base verification.
+- A harness-created worktree is not proof of freshness. Claude's `fresh`
+  mode can use a cached remote ref when fetching fails; `head` mode uses
+  local HEAD. See [Claude Code worktree bases](https://code.claude.com/docs/en/worktrees#choose-the-base-branch).
 - No harness support: follow all steps.
 
 ## Steps
 
-1. **Sync**: `git fetch origin`.
+1. **Fetch and select the base before creating the task branch**:
+   run `git fetch origin` and require success. Default to `origin/main`,
+   never a potentially stale local `main`. Record the base commit with
+   `git rev-parse --verify 'origin/main^{commit}'`.
+
+   If origin's fetch configuration excludes main, explicitly fetch it:
+   `git fetch origin refs/heads/main:refs/remotes/origin/main`, then record
+   the commit. If the user requested a release branch, PR head, or other
+   base, fetch and resolve that base instead; do not replace it with main.
+   Use the selected commit in step 4. If fetching fails or the base cannot
+   be resolved, report the blocker and ask for direction before using a
+   cached ref or substituting a different base. No checkout, pull, or reset
+   of local `main` is needed.
 
 2. **Scope check**: run `gh pr list` and skim the open PRs' changed files
    (`gh pr diff <n> --name-only`). If your task needs files another open PR
@@ -40,7 +54,7 @@ worktree or branch.
 
    ```bash
    git worktree add <worktrees-dir>/<task-name> \
-     -b <branch-prefix>/<task-name> origin/main
+     -b <branch-prefix>/<task-name> <fetched-base-commit>
    ```
 
    Use a **gitignored** directory for worktrees (e.g. `.claude/worktrees/`
@@ -53,7 +67,15 @@ worktree or branch.
    ```bash
    cd <worktrees-dir>/<task-name>
    git branch --show-current   # must print your new branch, not main
+   git rev-parse HEAD          # must equal the recorded base before edits
    ```
+
+   For a newly created branch, verify HEAD equals the recorded base commit
+   before editing. If a harness already created a branch at a stale or
+   different base, resolve that mismatch first without discarding commits
+   or uncommitted work. Recreate only an unused, clean task worktree through
+   the harness when supported; otherwise ask how to preserve its work.
+   Continuing an existing task or PR does not mean restarting its branch.
 
    Then install dependencies fresh inside the worktree (worktrees don't
    share `node_modules`/virtualenvs) and confirm the runtime version the
