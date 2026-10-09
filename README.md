@@ -154,10 +154,6 @@ line) still needs a human read of the transcript.
 
 ## Installing (per machine)
 
-For the separate Codex plugin, agent guidance, memory hooks, and Codex-native
-evals, see [codex/README.md](codex/README.md). The Claude installer below does
-not install or configure Codex.
-
 ```bash
 git clone https://github.com/ronnyabuto/agent-skills.git
 cd agent-skills

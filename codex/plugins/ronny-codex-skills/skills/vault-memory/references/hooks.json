@@ -1,7 +1,0 @@
-{
-  "hooks": {
-    "SessionStart": [{"matcher": "startup|resume|clear|compact", "hooks": [{"type": "command", "command": "python3 \"<installed-marketplace>/plugins/ronny-codex-skills/skills/vault-memory/scripts/hooks.py\"", "timeout": 30}]}],
-    "PreCompact": [{"hooks": [{"type": "command", "command": "python3 \"<installed-marketplace>/plugins/ronny-codex-skills/skills/vault-memory/scripts/hooks.py\"", "timeout": 30}]}],
-    "SessionEnd": [{"hooks": [{"type": "command", "command": "python3 \"<installed-marketplace>/plugins/ronny-codex-skills/skills/vault-memory/scripts/hooks.py\"", "timeout": 3}]}]
-  }
-}
