@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-09",
+  "runtime": "codex-cli 0.161.0",
+  "scope": "Five single-run system-reasoning smoke cases; not a comparative benchmark",
+  "results": [
+    {
+      "case": "caching",
+      "trigger_matched": true,
+      "fixture_unchanged": true,
+      "behavior_review": "passed"
+    },
+    {
+      "case": "duplicate-payments",
+      "trigger_matched": true,
+      "fixture_unchanged": true,
+      "behavior_review": "passed"
+    },
+    {
+      "case": "queue-capacity",
+      "trigger_matched": true,
+      "fixture_unchanged": true,
+      "behavior_review": "passed"
+    },
+    {
+      "case": "routine-crud",
+      "trigger_matched": true,
+      "fixture_unchanged": true,
+      "behavior_review": "passed"
+    },
+    {
+      "case": "known-local-bug",
+      "trigger_matched": true,
+      "fixture_unchanged": true,
+      "behavior_review": "passed"
+    }
+  ],
+  "limitations": [
+    "Synthetic fixtures only",
+    "No without-skill baseline",
+    "The other 115 catalog scenarios were not run"
+  ]
+}
