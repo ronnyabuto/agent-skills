@@ -35,7 +35,7 @@ def skills_invoked(query, skill):
          "--settings", json.dumps({"env": {"AGENT_VAULT": vault}})],
         cwd=cwd, capture_output=True, text=True, timeout=400,
     )
-    found, turns = [], 0
+    found, turns, failed = [], 0, False
     for line in proc.stdout.splitlines():
         try:
             ev = json.loads(line)
@@ -43,14 +43,17 @@ def skills_invoked(query, skill):
             continue
         if ev.get("type") == "result":
             turns = ev.get("num_turns") or 0
+            failed = failed or bool(ev.get("is_error"))
+        if ev.get("is_api_error_message"):
+            failed = True
         if ev.get("type") != "assistant":
             continue
         for block in ev.get("message", {}).get("content", []):
             if block.get("type") == "tool_use" and block.get("name") == "Skill":
                 found.append(block.get("input", {}).get("skill", "?"))
-    # A session that never took a turn (usage limit, API error) says nothing
-    # about triggering; report it instead of scoring it as "no skill".
-    return None if turns == 0 and not found else found
+    # API failures may report a synthetic turn; neither those nor sessions
+    # that never ran provide evidence about skill triggering.
+    return None if failed or (turns == 0 and not found) else found
 
 
 passed = total = errors = 0

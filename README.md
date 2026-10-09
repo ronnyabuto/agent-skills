@@ -27,6 +27,16 @@ new one, and nothing gets built that wasn't asked for. Use when multiple workflo
 duplicate the same operational logic, when deciding what belongs in actions vs.
 shared services, or when deciding where new code goes.
 
+### [system-reasoning](system-reasoning/SKILL.md)
+
+First-principles reasoning for system design and root-cause debugging — derives
+choices from requirements, invariants, and evidence, separates constraints from
+assumptions, and tests causal explanations before choosing a correction. Use
+for architectural tradeoffs, scaling/reliability constraints, unexplained
+bottlenecks, and recurring or unclear bugs. Keeps investigation proportional;
+skips routine CRUD and local bugs with an established cause. Original,
+self-authored.
+
 ### [new-feature](new-feature/SKILL.md)
 
 Starts every new task in an isolated Git worktree branched from freshly fetched `origin/main`
@@ -115,7 +125,7 @@ doesn't need to be running. Needs Node >= 22.5 and the hook snippet in
 ## How these fit together
 
 [AGENTS.md](AGENTS.md) defines the actual orchestration: which skills run in
-sequence (`new-feature` → implement, with `understand-before-changing` /
+sequence (`new-feature` → research and optional `system-reasoning` → implement, with `understand-before-changing` /
 `code-structure` / `no-ai-tells` all applied inline as ongoing lenses →
 `evidence-driven-testing`), and which are safe to run concurrently
 (`project-audit` + `ux-speed-audit`, since both are read/measure-only) versus

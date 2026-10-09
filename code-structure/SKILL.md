@@ -22,6 +22,11 @@ This prevents duplicated code, inconsistent behavior, and bugs fixed in one path
 
 ## Scope and Placement
 
+For system-level choices (architecture, scaling, reliability), use
+`system-reasoning` to establish requirements and compare alternatives first.
+This skill then guides where the chosen implementation belongs and how much
+to build.
+
 Settle these before writing anything; they're the cheapest point to keep a
 change small.
 
