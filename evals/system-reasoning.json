@@ -1,0 +1,54 @@
+[
+  {
+    "skills": ["system-reasoning"],
+    "query": "Our dashboard is slow and someone proposed Redis. Assess whether caching is the right design before changing anything.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the system-reasoning skill",
+      "Establishes workload, latency target, freshness requirements, and observed query or dependency costs; labels missing measurements as unknown",
+      "Compares the current approach and smaller query/index or request-flow corrections with caching",
+      "Gives a conditional recommendation with tradeoffs and a validation plan rather than assuming Redis is necessary"
+    ]
+  },
+  {
+    "skills": ["system-reasoning"],
+    "query": "Customers sometimes get charged twice even though we disabled the payment button after clicking. Investigate the root cause before proposing a fix.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the system-reasoning skill",
+      "Establishes the payment invariant and seeks a reproduction or trace of the failing request path",
+      "Tests plausible retry, concurrent caller, or duplicate submission explanations instead of assuming the UI is the cause",
+      "Inspects idempotency at the payment boundary without claiming its absence proves which path caused the reported incident",
+      "Proposes a correction at the causal owner and a regression check that fails before and passes after; reports unverified causes as hypotheses"
+    ]
+  },
+  {
+    "skills": ["system-reasoning"],
+    "query": "Our background jobs fall behind during bursts. Should we move another synchronous endpoint onto the queue? Assess capacity and failure behavior first.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the system-reasoning skill",
+      "Investigates arrival rate, service rate, concurrency, burst duration, and resource saturation with explicit assumptions",
+      "Evaluates backlog recovery, retries, ordering, and duplicate processing where relevant to the workload",
+      "Does not treat async processing as proof of increased capacity; compares sufficient alternatives and proposes measurements"
+    ]
+  },
+  {
+    "skills": ["system-reasoning"],
+    "query": "Add a conventional CRUD endpoint for a display-name field using the existing validation and handler pattern.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke the system-reasoning skill",
+      "Follows the existing adequate pattern without a system-wide design study"
+    ]
+  },
+  {
+    "skills": ["system-reasoning"],
+    "query": "The date picker returns an extra day because daysInMonth adds 1 to getDate(). Remove that erroneous +1 and verify February in leap and non-leap years.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke the system-reasoning skill",
+      "Verifies the established local cause and makes the targeted correction with relevant checks"
+    ]
+  }
+]

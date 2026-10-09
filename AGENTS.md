@@ -19,7 +19,7 @@ clearly just editing the skills themselves.
 
 # Skill Orchestration
 
-How these 10 skills relate — what has to run in order, and what's safe to run
+How these 11 skills relate — what has to run in order, and what's safe to run
 at the same time. The dividing line is simple: **anything that writes to
 source files needs exclusive access to the tree it's writing to. Anything
 that only reads/measures/reports doesn't.**
@@ -30,6 +30,7 @@ that only reads/measures/reports doesn't.**
 |---|---|---|
 | `new-feature` | Setup — isolate a task into its own worktree/branch | Repo structure only (branch/worktree), not source |
 | `current-docs` | Pre-implementation research — verify against the actually-installed version's official docs | No — read-only research |
+| `system-reasoning` | Design and diagnosis — derive choices from constraints and investigate root causes | No source edits — may run probes/tests; measurements need a quiet machine |
 | `understand-before-changing` | Ongoing lens — investigate why existing code is the way it is before editing, deleting, *or adding to* any existing file | No — read-only investigation |
 | `code-structure` | Ongoing lens applied while writing code | No — guidance only |
 | `no-ai-tells` | Ongoing final-pass discipline applied while writing code | Yes — but as part of the same edit, not a separate process |
@@ -50,7 +51,13 @@ Runs in order, one agent/session, single worktree:
    pinned version and pull its official docs before writing code against it.
    Skip this step outright for stable syntax/stdlib work; it's not a tax on
    every task.
-3. **Implement**, applying all three ongoing lenses inline — they aren't
+3. **`system-reasoning`**, for architectural choices, scaling/reliability
+   constraints, unexplained bottlenecks, or recurring/unclear bugs. Establish
+   requirements and invariants, test assumptions or causal explanations, and
+   choose a sufficient solution before implementing. Apply
+   `understand-before-changing` during this investigation when existing code
+   is involved. Skip routine work and local bugs with an established cause.
+4. **Implement**, applying all three ongoing lenses inline — they aren't
    separate phases, they run continuously while writing:
    - `understand-before-changing` the moment the work touches an
      already-existing file, in *any* of the three ways: editing it,
@@ -63,9 +70,9 @@ Runs in order, one agent/session, single worktree:
      one, action vs. service layer) and how much of it to build.
    - `no-ai-tells` as the final pass before considering any code-writing
      step done.
-4. **`evidence-driven-testing`** — once the change works and tests pass,
+5. **`evidence-driven-testing`** — once the change works and tests pass,
    capture proof.
-5. **`vault-memory`**, only if the task settled a decision a future session
+6. **`vault-memory`**, only if the task settled a decision a future session
    would otherwise rediscover — file a note. The session itself is archived
    by hooks; don't duplicate it.
 
@@ -98,6 +105,8 @@ Not tied to a specific feature; run this against the whole repo:
 - Multiple report-only skills against the same codebase → safe to
   parallelize, with one exception: performance measurement needs a quiet
   machine, so nothing heavy runs alongside `ux-speed-audit`'s measuring.
+  This includes `system-reasoning` probes/tests; run its performance
+  measurements alone too.
 - Any skill that writes to source files → run it alone, or give it its own
   worktree (via `new-feature`'s pattern) if it truly needs to run alongside
   other in-flight edits. Never point two file-mutating skills at the same
