@@ -87,12 +87,27 @@ another agent's worktree or branch.
   databases, and dependency lockfiles are global. Confirm a port answers
   *your* process (`lsof -i :<port>`) before trusting what it serves, and
   resolve lockfile conflicts by regenerating, never by hand-merging.
-- Keep the worktree until the PR is merged or closed. Cleanup after merge:
+- Prefer short-lived task branches; delete them after their work is merged
+  and no longer needed. Retain long-lived branches only for maintained
+  releases or ongoing work. Keep the worktree while its work is needed;
+  a closed, unmerged PR alone is not evidence that its work can be discarded.
+- Before cleanup, confirm the PR was merged into the intended base, the
+  task branch has no later unmerged commits, and the worktree is clean.
+  Leave the worktree, then remove it and try ordinary branch deletion:
 
   ```bash
   git worktree remove <worktrees-dir>/<task-name>
-  git branch -D <branch-prefix>/<task-name>
+  git branch -d <branch-prefix>/<task-name>
   ```
 
-  `-D` is expected: after a squash- or rebase-merge, `-d` refuses even
-  though the work is merged.
+  If `-d` refuses after a squash or rebase merge, use `-D` only after
+  confirming the branch's work is integrated and no additional work remains,
+  within the authorized cleanup scope. Never force-remove a dirty worktree.
+- Deleting a branch whose commits are reachable from `main` preserves those
+  commits. Squash and rebase merges retain the integrated work but may not
+  retain the original task commit IDs.
+- For GitHub repositories, recommend **Settings → General → Pull Requests →
+  Automatically delete head branches**. This deletes remote PR branches
+  after merge; local branches and worktrees still need cleanup. Repository
+  rules can prevent automatic deletion. Change the setting only when
+  authorized. See [GitHub's automatic branch deletion documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-the-automatic-deletion-of-branches).
