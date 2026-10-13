@@ -1,215 +1,100 @@
 # agent-skills
 
-Personal collection of [Agent Skills](https://agentskills.io) — the open, cross-platform
-`SKILL.md` format for giving coding agents on-demand procedural knowledge. Works with
-Claude Code, Antigravity, and any other client that implements the spec.
-
-Started as a trimmed fork of [michaelshimeles/skills](https://github.com/michaelshimeles/skills).
-Kept only what has zero external paid-tool dependency or genuine standalone value;
-dropped the skills that existed to orchestrate a specific third-party service (Greptile,
-Vercel's before-and-after CLI) I don't use.
-
-**Provenance note:** the upstream repo carries no root `LICENSE` file, so the content
-below (including `evidence-driven-testing/scripts/evidence.py`) is still the original
-author's unlicensed work, kept here verbatim for personal use — not rewritten, not
-relicensed. As I customize each skill for my own workflow the diff from upstream
-will grow; until then, treat the content as
-"borrowed with attribution," not "owned."
+Twelve on-demand [Agent Skills](https://agentskills.io) for Claude Code: task
+setup, code investigation and design, audits, evidence capture, and local vault
+memory. This repository contains `SKILL.md` procedures, supporting references,
+helper scripts, an installer, and eval fixtures. It is the Claude Code collection;
+the separate Codex package and installation are maintained separately.
 
 ## Skills
 
-### [code-structure](code-structure/SKILL.md)
+| Skill | Use |
+|---|---|
+| [new-feature](new-feature/SKILL.md) | Start tasks in isolated worktrees from a freshly fetched base |
+| [current-docs](current-docs/SKILL.md) | Verify uncertain integrations against version-specific official docs |
+| [system-reasoning](system-reasoning/SKILL.md) | Investigate architectural choices and unclear root causes |
+| [understand-before-changing](understand-before-changing/SKILL.md) | Inspect existing behavior and constraints before editing |
+| [code-structure](code-structure/SKILL.md) | Place logic with its owner; extract concrete duplication |
+| [no-ai-tells](no-ai-tells/SKILL.md) | Remove redundant comments and scaffolding while writing |
+| [evidence-driven-testing](evidence-driven-testing/SKILL.md) | Capture recordings, screenshots, or measured proof |
+| [project-audit](project-audit/SKILL.md) | Report prioritized codebase health findings |
+| [ux-speed-audit](ux-speed-audit/SKILL.md) | Measure loading and interaction responsiveness |
+| [managed-audit](managed-audit/SKILL.md) | Coordinate explicitly requested specialist or station audits |
+| [no-ai-tells-audit](no-ai-tells-audit/SKILL.md) | Remediate readability problems across existing source |
+| [vault-memory](vault-memory/SKILL.md) | Archive sessions and recall relevant Markdown notes |
 
-Service layer architecture guidance — separates **actions** (orchestrate domain rules)
-from a **service layer** (reusable operational mechanics), plus a scope rule: new code
-goes in the existing file that owns the behavior unless there's a stated reason for a
-new one, and nothing gets built that wasn't asked for. Use when multiple workflows
-duplicate the same operational logic, when deciding what belongs in actions vs.
-shared services, or when deciding where new code goes.
+[AGENTS.md](AGENTS.md) explains sequencing and concurrency. Audit findings do not
+by themselves authorize changes. Concurrent source writers need separate
+worktrees; performance measurements need a quiet machine.
 
-### [system-reasoning](system-reasoning/SKILL.md)
-
-First-principles reasoning for system design and root-cause debugging — derives
-choices from requirements, invariants, and evidence, separates constraints from
-assumptions, and tests causal explanations before choosing a correction. Use
-for architectural tradeoffs, scaling/reliability constraints, unexplained
-bottlenecks, and recurring or unclear bugs. Keeps investigation proportional;
-skips routine CRUD and local bugs with an established cause. Original,
-self-authored.
-
-### [new-feature](new-feature/SKILL.md)
-
-Starts every new task in an isolated Git worktree branched from freshly fetched `origin/main`
-(or an explicitly requested release/PR base) — verifies the starting commit,
-uses unique task names, checks open PR scope, and cleans up after merge. Use at the start of
-any new feature/fix/task, or when running multiple agent sessions on the same repo.
-
-### [evidence-driven-testing](evidence-driven-testing/SKILL.md)
-
-Records visual proof while testing UI behavior (screen recording + structured
-annotations, or scripted screenshots in headless environments), then summarizes results.
-Desktop recording needs `ffmpeg`/`ffprobe` with libx264 and the ass filter;
-headless screenshots and probes use the separate path in the skill.
-Use whenever a change needs verifiable evidence instead of prose claims.
-
-### [project-audit](project-audit/SKILL.md)
-
-Full-codebase health audit — architecture, correctness risk, security, dependencies,
-test coverage, operational readiness — as a prioritized, severity-ranked findings
-report. Original, self-authored (not from upstream). Use for "audit this project" /
-"review the codebase" style requests.
-
-### [ux-speed-audit](ux-speed-audit/SKILL.md)
-
-Audits page-load speed against Core Web Vitals (LCP ≤ 2.5 s, INP ≤ 200 ms,
-CLS ≤ 0.1 at the 75th percentile) and interaction feedback against Nielsen's
-response-time limits (0.1 s instant, 1 s flow, 10 s attention). Measures live
-on a production build, median of 5 runs — render-blocking resources, bundle
-size, perceived speed, data-layer waterfalls, caching. Original, self-authored. Use for "make it
-feel instant" / loading-speed audits.
-
-### [no-ai-tells](no-ai-tells/SKILL.md)
-
-Final-pass checklist against comment/structural patterns that read as
-LLM-generated or templated (comments that restate code, staged "Step 1/2"
-narration, change-history comments, untracked stubs, disproportionate defensive
-completeness, naming inconsistent with the surrounding file). The structural
-entries match peer-reviewed human-vs-LLM code comparisons (more templated,
-repetitive, generically named, duplicated); the comment entries are
-established readability practice rather than measured AI signatures. Original,
-self-authored. Use as a final pass before finishing any code-writing task.
-
-### [no-ai-tells-audit](no-ai-tells-audit/SKILL.md)
-
-The one-time remediation version of `no-ai-tells` — sweeps an *existing*
-codebase for the same tells and fixes them, rather than applying the checklist
-inline while writing new code. **Mutates source directly** — see
-[AGENTS.md](AGENTS.md) for how to sequence it against the other skills.
-Original, self-authored. Use for "clean up this codebase" / "get rid of AI
-tells."
-
-### [current-docs](current-docs/SKILL.md)
-
-Before implementing against a library/framework/SDK/API whose current
-behavior isn't certain from memory, identify the version actually pinned in
-this project (lockfile/manifest, not "latest") and fetch *that* version's
-official docs as source of truth. Greenfield/unpinned deps get latest docs
-instead, since there's no existing constraint to respect. Original,
-self-authored. Skip it for stable stdlib/syntax work — it's scoped to
-genuine version uncertainty, not every task.
-
-### [understand-before-changing](understand-before-changing/SKILL.md)
-
-Chesterton's Fence for code, applied broadly: whenever a task touches an
-*already-existing* file — editing it, deleting from it, **or adding new code
-into it** — investigate why the existing implementation is the way it is
-(git blame/log, tests, comments, linked issues) before touching it. Classify
-the finding as confirmed-valid, outdated/wrong, or undeterminable — never
-invent a plausible-sounding "why" when the real answer is "unknown." Also
-gates `no-ai-tells-audit` before it deletes anything. Original,
-self-authored. Only exempt for a genuinely new file/module with nothing
-existing to reference.
-
-### [vault-memory](vault-memory/SKILL.md)
-
-Long-term memory in an Obsidian vault, loaded by reference instead of by
-value. Hooks archive every session before compaction and at exit — condensed
-to prompts, replies, one line per tool call, and the compaction summaries
-(96–98% smaller than the raw transcript in the sessions measured), secrets redacted. Session start
-injects a ~250-token pointer; everything else is pulled in on demand through
-a zero-dependency Node script (SQLite FTS5/BM25, ~120 ms per search) that
-returns ~60 tokens per hit and reads only the matching line range. Obsidian
-doesn't need to be running. Needs Node 22.x >= 22.16 or Node >= 24 and the hook snippet in
-[references/hooks.json](vault-memory/references/hooks.json) merged into
-`~/.claude/settings.json`. Original, self-authored.
-
-## How these fit together
-
-[AGENTS.md](AGENTS.md) defines the actual orchestration: which skills run in
-sequence (`new-feature` → research and optional `system-reasoning` → implement, with `understand-before-changing` /
-`code-structure` / `no-ai-tells` all applied inline as ongoing lenses →
-`evidence-driven-testing`), and which are safe to run concurrently
-(`project-audit` + `ux-speed-audit`, since both are read/measure-only) versus
-which need exclusive write access to the tree (`no-ai-tells-audit`, since it
-edits source directly).
-
-## Evals
-
-`evals/<skill>.json` holds three or four scenarios per skill in Anthropic's
-documented format (`skills`, `query`, `files`, `expected_behavior`): cases
-that should trigger the skill and one near-miss that shouldn't. The trigger check
-runs each query in a fresh headless session inside a throwaway fixture repo
-and records which skills it invokes:
-
-```bash
-evals/build_fixture.sh /tmp/skill-evals
-python3 evals/run_trigger_evals.py /tmp/skill-evals sonnet   # or: haiku, opus; add skill names to filter
-```
-
-It measures the skills installed in `~/.claude/skills`, so merge description
-changes first. Last measured on Sonnet (2026-09-23, one sample per case):
-27/30, with run-to-run variation on individual cases, so rerun before
-reading much into a single miss. It checks triggering only; whether the
-skill's instructions are then followed (`expected_behavior` beyond the first
-line) still needs a human read of the transcript.
-
-## Installing (per machine)
+## Installation and requirements
 
 ```bash
 git clone https://github.com/ronnyabuto/agent-skills.git
 cd agent-skills
-./install.sh
+./install.sh --vault ~/agent-vault
 ```
 
-Or open Claude Code in the cloned folder and ask it to set things up —
-`AGENTS.md` tells it to check whether the skills are installed and offer to
-run the script (it asks before changing your settings).
+The Bash installer discovers every top-level folder containing `SKILL.md` and
+symlinks it into `~/.claude/skills/` (or `$CLAUDE_CONFIG_DIR/skills/`). It also links
+skills for Antigravity when `~/.gemini/antigravity/` exists; that does not make
+Claude-specific delegation or hooks portable. Existing folders and links pointing
+elsewhere are skipped. Edits in the linked checkout take effect without copying.
 
-`install.sh` symlinks every skill folder into `~/.claude/skills/` (and
-`~/.gemini/antigravity/skills/` if Antigravity is installed), so edits here
-take effect everywhere immediately. It then asks where vault-memory's vault
-should live and merges the hooks plus `AGENT_VAULT` into
-`~/.claude/settings.json`, backing the file up first. It's safe to re-run,
-never overwrites a skill folder you already have, and warns if the vault
-sits in a Git repo, even when its archives are ignored.
+By default it merges vault-memory hooks and `AGENT_VAULT` into Claude's
+`settings.json`, backing up an existing file before writing. Without `--vault`,
+it prompts on an interactive terminal or uses `~/agent-vault`. An existing
+`settings.env.AGENT_VAULT` takes precedence. Start a new session or run `/hooks`
+after installation to load the hooks.
 
 | Flag | Effect |
 |---|---|
-| `--vault <path>` | Set the vault without prompting |
-| `--no-hooks` | Link the skills only; leave `settings.json` alone |
-| `--dry-run` | Print what would change |
-| `--uninstall` | Remove the links and hooks it added (vault notes are kept) |
+| `--vault <path>` | Choose the vault without prompting |
+| `--no-hooks` | Link skills without changing settings |
+| `--dry-run` | Preview changes without writing |
+| `--uninstall` | Remove this checkout's links and matching vault hooks; keep notes and `AGENT_VAULT` |
 
-Requirements: bash, and Node 22.x >= 22.16 or Node >= 24 for vault-memory's hooks. Obsidian is
-optional — the vault is plain Markdown; open it in Obsidian only to browse.
-`evidence-driven-testing` additionally wants ffmpeg for screen recording.
+Vault hooks require Node 22.x ≥ 22.16 or Node ≥ 24 with SQLite FTS5; the installer
+probes runtime capabilities and leaves hooks uninstalled if unavailable. Obsidian
+is optional. Desktop evidence recording needs Python 3, a drivable GUI, and
+`ffmpeg`/`ffprobe` with libx264 and the ass filter. Headless evidence uses a
+scriptable browser or probe instead. Git task setup needs Git and GitHub CLI;
+trigger evals need Python 3 and an authenticated Claude Code CLI.
 
-Project-scoped instead of global: symlink skill folders into `.claude/skills/`
-inside a specific repo instead.
+For project scope, link individual skill folders into `.claude/skills/` manually.
+Installed skills provide procedures when invoked. Put standing instructions in
+[`~/.claude/CLAUDE.md`](https://code.claude.com/docs/en/memory).
+This checkout's `CLAUDE.md` imports `AGENTS.md`; installation does not install
+those project instructions globally. Preserve existing personal instructions.
 
-## Adding a new skill
+## Privacy
 
-1. New folder, kebab-case name.
-2. `SKILL.md` with `name` and `description` frontmatter — the description is what the
-   agent matches against, so make it trigger-focused ("Use when...").
-3. Keep the body concise; put anything long in `references/`, put runnable helpers in
-   `scripts/`.
-4. Symlink it into whichever client directories you want it active in (see above).
+Keep vaults outside source trees and public sync. Git ignores do not exclude
+archives from zip/tar files or workspace shares. Pattern redaction cannot remove
+all secrets or personal data; use `VAULT_MEMORY_EXCLUDE` for sensitive projects.
+The searchable index also contains private text: keep `~/.cache/vault-memory/`
+(or its `XDG_CACHE_HOME` location) private. To relocate memory, update the existing
+`AGENT_VAULT` setting, safely move `claude/` archives and notes, restart Claude,
+and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
-### Shared coding instructions and private memory
+## Evaluation and provenance
 
-Keep short, standing coding invariants in `~/.claude/CLAUDE.md`; installed
-skills supply procedures when invoked. This repository's `CLAUDE.md` imports
-`AGENTS.md`, but installing its skills does not install its project instructions
-globally. Preserve any existing personal instructions when adding shared rules.
+`evals/*.json` contains 48 scenarios across 12 skills using `skills`, `query`,
+`files`, and `expected_behavior`. The runner scores triggering from the first
+expectation's `Invokes` prefix; some older behavioral cases lack that prefix and
+need manual interpretation. Full workflow compliance needs transcript review.
+Fixtures use synthetic memory, a local Git origin, and disposable case copies. Live runs use
+installed skills, can incur model usage charges, and exclude errored sessions:
 
-Keep `AGENT_VAULT` outside source trees (default `~/agent-vault`). Git ignores
-prevent accidental Git additions, not inclusion in zip/tar or workspace shares.
-The installer preserves an existing `settings.env.AGENT_VAULT`; edit that setting
-to relocate a configured vault. Move the `claude/` archives and notes safely,
-restart Claude Code, and rebuild the index with `node vault.mjs index --rebuild`.
-Pattern redaction cannot guarantee removal of personal data or arbitrary secrets.
+```bash
+evals/build_fixture.sh /tmp/skill-evals
+python3 evals/run_trigger_evals.py /tmp/skill-evals sonnet managed-audit
+```
 
-Trigger eval fixtures contain synthetic memory only and use a local Git origin.
-Every case runs in a disposable repository copy. Set `EVAL_MAX_TURNS` when
-measuring chained workflows; errored or timed-out sessions are not scored.
+This collection began with `code-structure`, `new-feature`, and
+`evidence-driven-testing` from
+[michaelshimeles/skills](https://github.com/michaelshimeles/skills).
+Their procedures have been modified here; the inherited `evidence.py` recorder
+remains unchanged from the initial import. The other skills were authored locally;
+`managed-audit` adapts the separate Codex skill for documented Claude Code
+capabilities. Attribution records provenance, not a new license grant.

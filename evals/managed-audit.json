@@ -1,0 +1,70 @@
+[
+  {
+    "skills": ["managed-audit"],
+    "query": "Act as audit manager for this app. Delegate bounded security and correctness questions to specialists, then consolidate verified findings. Investigation only; do not change source.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the managed-audit skill",
+      "Establishes scope and gives specialists falsifiable questions with permitted actions and evidence requirements",
+      "Uses available Claude Code subagents without assuming they inherit the conversation or skill instructions",
+      "Verifies consequential findings and consolidates duplicates; does not implement changes"
+    ]
+  },
+  {
+    "skills": ["managed-audit"],
+    "query": "Review this app station by station with specialist agents. Start with dashboard access, discuss that station with me, and wait for my direction before moving to settings.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the managed-audit skill",
+      "Derives roles and station behavior from evidence and identifies assumptions",
+      "Reports and discusses dashboard access findings before advancing",
+      "Waits for user direction and does not dispatch settings work in advance"
+    ]
+  },
+  {
+    "skills": ["managed-audit"],
+    "query": "Coordinate a specialist audit of security and loading performance. Audit first; after we discuss findings I may authorize parallel fixes. Keep the latency measurements uncontended.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the managed-audit skill",
+      "Separates current read-only investigation from possible future implementation authority",
+      "Runs performance measurements without competing builds, tests, or other heavy workloads",
+      "Requires separate verified worktrees for concurrent source writers if fixes are later authorized"
+    ]
+  },
+  {
+    "skills": ["managed-audit"],
+    "query": "Lead a manager audit of this app, but assume specialist delegation and a browser are unavailable in this session. Tell me what can be checked and what remains blocked.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the managed-audit skill",
+      "Reports delegation and browser limitations honestly and performs useful direct inspection",
+      "Does not fabricate workers, browser evidence, or complete coverage",
+      "Does not claim a timer, supervisor, or deadline enforcement is installed"
+    ]
+  },
+  {
+    "skills": ["managed-audit"],
+    "query": "The date picker has an extra day because daysInMonth adds 1 to getDate(). Remove the +1 and check February in leap and non-leap years.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke managed-audit; handles the established local bug without manager coordination"
+    ]
+  },
+  {
+    "skills": ["managed-audit"],
+    "query": "Review only api/parse.ts for validation bugs and report findings without editing.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke managed-audit; performs a narrow review without specialist orchestration"
+    ]
+  },
+  {
+    "skills": ["managed-audit"],
+    "query": "Audit this project's overall health and give me a prioritized findings list.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke managed-audit; a general project audit alone does not request manager coordination"
+    ]
+  }
+]
