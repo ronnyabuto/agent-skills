@@ -81,6 +81,16 @@ another agent's worktree or branch.
    share `node_modules`/virtualenvs) and confirm the runtime version the
    repo requires before running anything.
 
+   Restore the project's required local configuration before tests. For
+   Claude-created worktrees, use an explicit `.worktreeinclude` allowlist
+   (for example `.env.local`), following the project's environment policy.
+   Only matching gitignored files are copied. Manual `git worktree add`
+   does not process `.worktreeinclude`: copy the approved files explicitly,
+   or regenerate them using the project's setup command. Preserve local
+   permissions and keep the copies gitignored. Avoid blanket `.env*`
+   copying or shared symlinks that let one worktree change another's setup.
+   See [Claude Code worktree configuration](https://code.claude.com/docs/en/worktrees#copy-gitignored-files-into-worktrees).
+
 ## Remember
 
 - Worktrees do **not** isolate shared resources: dev-server ports, shared

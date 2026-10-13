@@ -1,12 +1,14 @@
 #!/bin/bash
 # Builds the throwaway repos the trigger evals run in.
-#   evals/build_fixture.sh <out-dir> [vault-source-dir]
+#   evals/build_fixture.sh <out-dir> [instructions-source-dir]
 # <out-dir>/webapp        a small Next.js/Express app the queries refer to
-# <out-dir>/agent-skills  a copy of the vault for the vault-memory cases,
+# <out-dir>/agent-skills  synthetic notes for the vault-memory cases,
 #                         named like this repo so project-scoped recall works
 set -e
-OUT=${1:?usage: build_fixture.sh <out-dir> [vault-source-dir]}
-VAULT_SRC=${2:-$(cd "$(dirname "$0")/.." && pwd)}
+OUT=${1:?usage: build_fixture.sh <out-dir> [instructions-source-dir]}
+INSTRUCTIONS_SRC=${2:-$(cd "$(dirname "$0")/.." && pwd)}
+mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"
 F="$OUT/webapp"
 rm -rf "$F"
 mkdir -p "$F"/{src,payments,api,handlers,flows,app/dashboard,app/settings,components,lib}
@@ -117,10 +119,40 @@ echo "# webapp" > README.md
 git init -q -b main
 git -c user.name=fixture -c user.email=fixture@example.com add -A
 git -c user.name=fixture -c user.email=fixture@example.com commit -q -m "Initial app"
+rm -rf "$OUT/origin.git"
+git init -q --bare "$OUT/origin.git"
+git remote add origin "$OUT/origin.git"
+git push -q -u origin main
 
 V="$OUT/agent-skills"
 rm -rf "$V"
-mkdir -p "$V"
-[ -d "$VAULT_SRC/claude" ] && cp -r "$VAULT_SRC/claude" "$V/claude"
-cp "$VAULT_SRC/AGENTS.md" "$V/AGENTS.md"
+mkdir -p "$V/claude/notes/agent-skills" "$V/claude/sessions/agent-skills"
+cat > "$V/claude/notes/agent-skills/memory-choice.md" <<'EOF'
+---
+type: note
+project: agent-skills
+date: 2026-01-01
+---
+# MemPalace memory choice
+
+We chose the local Markdown and SQLite index instead of MemPalace because
+this synthetic fixture needs no external service or additional dependencies.
+EOF
+cat > "$V/claude/sessions/agent-skills/2026-01-01-synthetic.md" <<'EOF'
+---
+type: session
+project: agent-skills
+session_id: synthetic
+started: 2026-01-01T00:00:00Z
+ended: 2026-01-01T00:01:00Z
+---
+# Pre-compaction error
+
+## Transcript
+
+**User:** What failed before compaction?
+
+**Claude:** The exact synthetic error was: SQLITE_BUSY: database is locked.
+EOF
+cp "$INSTRUCTIONS_SRC/AGENTS.md" "$V/AGENTS.md"
 echo "fixtures ready in $OUT"

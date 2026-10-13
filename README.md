@@ -12,8 +12,8 @@ Vercel's before-and-after CLI) I don't use.
 **Provenance note:** the upstream repo carries no root `LICENSE` file, so the content
 below (including `evidence-driven-testing/scripts/evidence.py`) is still the original
 author's unlicensed work, kept here verbatim for personal use — not rewritten, not
-relicensed. This repo stays private for that reason. As I customize each skill for my
-own workflow the diff from upstream will grow; until then, treat the content as
+relicensed. As I customize each skill for my own workflow the diff from upstream
+will grow; until then, treat the content as
 "borrowed with attribution," not "owned."
 
 ## Skills
@@ -48,7 +48,8 @@ any new feature/fix/task, or when running multiple agent sessions on the same re
 
 Records visual proof while testing UI behavior (screen recording + structured
 annotations, or scripted screenshots in headless environments), then summarizes results.
-Needs `ffmpeg`/`ffprobe` (with libx264) locally — see the skill's `compatibility` note.
+Desktop recording needs `ffmpeg`/`ffprobe` with libx264 and the ass filter;
+headless screenshots and probes use the separate path in the skill.
 Use whenever a change needs verifiable evidence instead of prose claims.
 
 ### [project-audit](project-audit/SKILL.md)
@@ -118,7 +119,7 @@ to prompts, replies, one line per tool call, and the compaction summaries
 injects a ~250-token pointer; everything else is pulled in on demand through
 a zero-dependency Node script (SQLite FTS5/BM25, ~120 ms per search) that
 returns ~60 tokens per hit and reads only the matching line range. Obsidian
-doesn't need to be running. Needs Node >= 22.5 and the hook snippet in
+doesn't need to be running. Needs Node 22.x >= 22.16 or Node >= 24 and the hook snippet in
 [references/hooks.json](vault-memory/references/hooks.json) merged into
 `~/.claude/settings.json`. Original, self-authored.
 
@@ -170,7 +171,7 @@ take effect everywhere immediately. It then asks where vault-memory's vault
 should live and merges the hooks plus `AGENT_VAULT` into
 `~/.claude/settings.json`, backing the file up first. It's safe to re-run,
 never overwrites a skill folder you already have, and warns if the vault
-sits in a git repo that would commit the session archives.
+sits in a Git repo, even when its archives are ignored.
 
 | Flag | Effect |
 |---|---|
@@ -179,12 +180,12 @@ sits in a git repo that would commit the session archives.
 | `--dry-run` | Print what would change |
 | `--uninstall` | Remove the links and hooks it added (vault notes are kept) |
 
-Requirements: bash, and Node ≥ 22.5 for vault-memory's hooks. Obsidian is
+Requirements: bash, and Node 22.x >= 22.16 or Node >= 24 for vault-memory's hooks. Obsidian is
 optional — the vault is plain Markdown; open it in Obsidian only to browse.
 `evidence-driven-testing` additionally wants ffmpeg for screen recording.
 
 Project-scoped instead of global: symlink skill folders into `.claude/skills/`
-or `.agents/skills/` inside a specific repo instead.
+inside a specific repo instead.
 
 ## Adding a new skill
 
@@ -194,3 +195,21 @@ or `.agents/skills/` inside a specific repo instead.
 3. Keep the body concise; put anything long in `references/`, put runnable helpers in
    `scripts/`.
 4. Symlink it into whichever client directories you want it active in (see above).
+
+### Shared coding instructions and private memory
+
+Keep short, standing coding invariants in `~/.claude/CLAUDE.md`; installed
+skills supply procedures when invoked. This repository's `CLAUDE.md` imports
+`AGENTS.md`, but installing its skills does not install its project instructions
+globally. Preserve any existing personal instructions when adding shared rules.
+
+Keep `AGENT_VAULT` outside source trees (default `~/agent-vault`). Git ignores
+prevent accidental Git additions, not inclusion in zip/tar or workspace shares.
+The installer preserves an existing `settings.env.AGENT_VAULT`; edit that setting
+to relocate a configured vault. Move the `claude/` archives and notes safely,
+restart Claude Code, and rebuild the index with `node vault.mjs index --rebuild`.
+Pattern redaction cannot guarantee removal of personal data or arbitrary secrets.
+
+Trigger eval fixtures contain synthetic memory only and use a local Git origin.
+Every case runs in a disposable repository copy. Set `EVAL_MAX_TURNS` when
+measuring chained workflows; errored or timed-out sessions are not scored.

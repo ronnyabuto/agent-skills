@@ -52,7 +52,17 @@ skills() {
 
 node_ok() {
   command -v node >/dev/null 2>&1 || return 1
-  node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22||(a===22&&b>=5)?0:1)'
+  node --no-warnings -e '
+    try {
+      const { DatabaseSync } = require("node:sqlite");
+      const db = new DatabaseSync(":memory:", { timeout: 5000 });
+      db.exec("CREATE VIRTUAL TABLE probe USING fts5(body, tokenize=\"porter unicode61\")");
+      db.prepare("INSERT INTO probe VALUES (?)").run("runtime capability");
+      db.prepare("SELECT bm25(probe) FROM probe WHERE probe MATCH ?").all("capability");
+      if (db.prepare("PRAGMA busy_timeout").get().timeout !== 5000) process.exit(1);
+      db.close();
+    } catch { process.exit(1); }
+  '
 }
 
 link_skills() {
@@ -130,6 +140,15 @@ if (MODE === "install") {
     else console.log(`  ok      AGENT_VAULT=${VAULT}`);
     settings.env.AGENT_VAULT = VAULT;
   }
+  const path = require("path");
+  const configured = settings.env.AGENT_VAULT.replace(/^~(?=\/|$)/, require("os").homedir());
+  let ancestor = path.resolve(configured);
+  while (!fs.existsSync(ancestor) && path.dirname(ancestor) !== ancestor) ancestor = path.dirname(ancestor);
+  const probe = require("child_process").spawnSync("git", ["-C", ancestor, "rev-parse", "--show-toplevel"], { encoding: "utf8" });
+  if (probe.status === 0) {
+    console.log(`  WARNING: AGENT_VAULT is inside ${probe.stdout.trim()}. Keep private memory outside source trees.`);
+    console.log("  .gitignore does not protect archives from zip/tar or workspace shares.");
+  }
 } else {
   for (const [event, groups] of Object.entries(settings.hooks ?? {})) {
     const kept = groups
@@ -184,8 +203,8 @@ if [ "$HOOKS" = 0 ]; then
 fi
 
 if ! node_ok; then
-  say "vault-memory needs Node >= 22.5 (found: $(node --version 2>/dev/null || echo none))."
-  say "Skills are linked; hooks were NOT installed. Install Node 22.5+ and re-run ./install.sh."
+  say "vault-memory needs Node 22.x >= 22.16 or Node >= 24 with SQLite FTS5 (found: $(node --version 2>/dev/null || echo none))."
+  say "Skills are linked; hooks were NOT installed. Install Node 22.x >= 22.16 or Node >= 24 and re-run ./install.sh."
   exit 1
 fi
 
@@ -194,7 +213,7 @@ if [ -z "$VAULT" ]; then
   if [ -t 0 ]; then
     say ""
     say "vault-memory archives each Claude Code session as Markdown in a vault folder."
-    say "Any folder works; an existing Obsidian vault is fine (Obsidian itself is optional)."
+    say "Choose a folder outside source trees; an existing private Obsidian vault is fine."
     read -r -p "Vault path [$default]: " VAULT
   fi
   VAULT="${VAULT:-$default}"
@@ -205,18 +224,6 @@ case "$VAULT" in /*) ;; *) VAULT="$PWD/$VAULT" ;; esac
 say "Configuring vault-memory in $SETTINGS"
 edit_settings install
 
-# Session archives can hold anything that was said in a session. If the vault
-# sits inside a git repo, make sure they can't be committed by accident.
-if git -C "$VAULT" rev-parse --show-toplevel >/dev/null 2>&1; then
-  top="$(git -C "$VAULT" rev-parse --show-toplevel)"
-  rel="$(realpath --relative-to="$top" "$VAULT/claude" 2>/dev/null || echo claude)"
-  if ! git -C "$top" check-ignore -q "$rel/" 2>/dev/null; then
-    say ""
-    say "WARNING: the vault is inside the git repo $top, and $rel/ is not ignored."
-    say "Session archives could be committed and pushed. Add this line to $top/.gitignore:"
-    say "  $rel/"
-  fi
-fi
 
 say ""
 say "Done. Start a new Claude Code session (or run /hooks) to load the hooks."
