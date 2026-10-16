@@ -71,8 +71,11 @@ Runs in order, one agent/session, single worktree:
      one, action vs. service layer) and how much of it to build.
    - `no-ai-tells` as the final pass before considering any code-writing
      step done.
-5. **`evidence-driven-testing`** — once the change works and tests pass,
-   capture proof.
+5. **Verify** at the affected boundary with proportionate existing checks.
+   Add permanent tests for meaningful uncovered behavior or regression risk,
+   not merely because code changed. Use `evidence-driven-testing` when the task
+   needs reproducible captures or measurements. Stop once the requested behavior
+   and relevant checks pass unless a failure or unresolved risk warrants more.
 6. **`vault-memory`**, only if the task settled a decision a future session
    would otherwise rediscover — file a note. The session itself is archived
    by hooks; don't duplicate it.
@@ -102,8 +105,8 @@ narrow reviews do not need this manager workflow.
    `understand-before-changing` first — a pattern that looks like an AI tell
    can still be load-bearing, and this is exactly the gate that catches that
    before deletion, not after.
-3. **`evidence-driven-testing`** — capture proof the remediation didn't
-   break behavior.
+3. **Verify the remediation** against the affected behavior; use
+   `evidence-driven-testing` when reproducible captures or measurements add value.
 4. **`no-ai-tells`** carries forward as the ongoing discipline for whatever
    gets written next.
 

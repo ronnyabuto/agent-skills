@@ -1,22 +1,30 @@
 ---
 name: evidence-driven-testing
 description: >
-  Records visual proof while testing UI behavior — the agent tests the app
-  hands-on via computer use while a screen recording with structured
-  test/assertion annotations captures the session — then posts the video and a
-  results summary to the PR and tracker issue. Use whenever a change needs
-  verifiable evidence that it works, instead of prose claims — "prove it
-  works," "show me it actually improved," before/after numbers — including
-  headless environments (scripted screenshots and probes) and non-UI changes
-  (measured request counts, latency, output pairs).
+  Choose realistic verification and capture reproducible proof of behavior:
+  annotated UI recordings, headless screenshots, or measured probes. Use when
+  asked to prove a fix, demonstrate improvement, design realistic tests, or
+  assess which tests to retain or replace. Scale checks to the changed behavior;
+  routine edits do not automatically need recordings or new test files.
 compatibility: Recording needs a drivable GUI (computer use or cua-driver), Python 3, and ffmpeg/ffprobe with libx264 and the ass filter; scripts/evidence.py captures on Linux (x11grab, wf-recorder), macOS (avfoundation) and Windows (gdigrab). The headless path needs only the running app and a scriptable browser (e.g. Playwright via npx). Posting needs gh or equivalent.
 metadata:
-  version: "1.2"
+  version: "1.3"
 ---
 
 # Evidence-Driven Testing
 
-Record annotated proof of behavior, then attach it to the PR and tracker issue.
+Choose evidence proportional to the change. Use existing checks or a focused
+probe for a small local change; recordings are for behavior that needs visual
+proof. Verification does not automatically require adding permanent tests.
+For test selection, realistic scenarios, or replacing older tests, read
+[Useful tests](references/useful-tests.md).
+For test selection alone, use that reference; follow the capture procedure
+below when the task needs recorded or measured evidence.
+
+Once the requested behavior and relevant checks pass, stop. Repeat or broaden
+verification only after a change, failure, or unresolved risk justifies it.
+For visual evidence, record annotated proof and deliver it to the requester;
+post to a PR or tracker only when the task authorizes that publication.
 
 The recording is the capture of you testing the app via computer use: start the
 recorder, then drive the app yourself — click, type, navigate — through each

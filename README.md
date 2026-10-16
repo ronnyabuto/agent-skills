@@ -27,6 +27,13 @@ the separate Codex package and installation are maintained separately.
 by themselves authorize changes. Concurrent source writers need separate
 worktrees; performance measurements need a quiet machine.
 
+For recurring workers, `system-reasoning` includes
+[loop admission, retry, and budget guidance](system-reasoning/references/agent-loops.md).
+For verification, `evidence-driven-testing` covers
+[realistic scenarios and retaining useful tests](evidence-driven-testing/references/useful-tests.md).
+Verification need not add permanent test files; retain checks for meaningful
+uncovered behavior, and preserve older regression cases while they remain relevant.
+
 ## Installation and requirements
 
 ```bash
@@ -79,17 +86,35 @@ and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
 ## Evaluation and provenance
 
-`evals/*.json` contains 48 scenarios across 12 skills using `skills`, `query`,
+`evals/*.json` contains 50 scenarios across 12 skills using `skills`, `query`,
 `files`, and `expected_behavior`. The runner scores triggering from the first
-expectation's `Invokes` prefix; some older behavioral cases lack that prefix and
-need manual interpretation. Full workflow compliance needs transcript review.
+expectation's `Invokes` or `Does not invoke` prefix; behavioral-only cases are
+reported as skipped rather than treated as negative trigger expectations.
+Full workflow compliance needs outcome and transcript review.
 Fixtures use synthetic memory, a local Git origin, and disposable case copies. Live runs use
-installed skills, can incur model usage charges, and exclude errored sessions:
+installed skills and can incur model usage charges:
 
 ```bash
 evals/build_fixture.sh /tmp/skill-evals
-python3 evals/run_trigger_evals.py /tmp/skill-evals sonnet managed-audit
+python3 evals/run_trigger_evals.py /tmp/skill-evals sonnet managed-audit --max-budget-usd 0.50
 ```
+
+Each run writes case metadata and a summary to a unique
+`.artifacts/trigger-evals-*.jsonl` file; use `--report <path>` for an explicit new
+file. Records retain turns, elapsed time, session ID, result subtype, estimated
+cost, main-loop `usage`, and whole-tree `modelUsage` when reported. Full
+transcripts are not copied into the report. Failed sessions remain visible and
+their reported cost counts toward the total; missing cost stays unknown.
+Cost per completed eval includes reported failed-session cost and is omitted
+when any executed case lacks cost. It measures eval execution, not task quality
+or subscription billing.
+
+`EVAL_MAX_TURNS` defaults to 6; `--max-turns` overrides it. `--timeout` defaults
+to 400 seconds per case. `--max-budget-usd` (or `EVAL_MAX_BUDGET_USD`) sets an
+optional per-case estimated spend cap, not a suite-wide cap; it may be exceeded.
+The runner does not retry cases and exits nonzero on failed expectations, session
+errors, or no scored cases. Run the local harness checks without model calls:
+`python3 -m unittest discover -s evals -p 'test_*.py' -v`.
 
 This collection began with `code-structure`, `new-feature`, and
 `evidence-driven-testing` from

@@ -100,7 +100,11 @@ anything, earns a comment — don't decide comment-by-comment on a first pass.
 - **Test-specific smells** — module-wide `jest.mock()` where a targeted
   `spyOn()` would do, redundant `beforeEach` resets "just to be safe," loose
   `as any` typing, regex assertions where exact-match works, reimplementing a
-  helper that already exists in the codebase.
+  helper that already exists in the codebase, assertions that merely repeat
+  the implementation or verify a mock's configured answer. Keep scratch checks
+  out of permanent test files unless they protect meaningful behavior or a
+  regression that existing tests miss. Preserve tests that still earn their
+  place, regardless of age or authorship.
 
 ## Nuance — don't overcorrect
 
