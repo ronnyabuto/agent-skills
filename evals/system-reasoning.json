@@ -50,5 +50,16 @@
       "Does not invoke the system-reasoning skill",
       "Verifies the established local cause and makes the targeted correction with relevant checks"
     ]
+  },
+  {
+    "skills": ["system-reasoning"],
+    "query": "Our overnight Claude issue watcher spends most runs rereading unchanged reports. Should we put a cheap AI classifier in front of it? Assess the design and cost before implementing.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the system-reasoning skill",
+      "Measures unchanged polling and productive outcomes; compares event-driven or code-based change detection before semantic classification",
+      "Accounts for duplicate claims, bounded retries and spending, observable completion and recoverable errors",
+      "Requires representative routing evidence before adding a classifier and includes failed work in cost per completed task"
+    ]
   }
 ]

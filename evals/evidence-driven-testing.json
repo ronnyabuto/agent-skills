@@ -32,5 +32,18 @@
     "expected_behavior": [
       "Does not invoke the evidence-driven-testing skill"
     ]
+  },
+  {
+    "skills": [
+      "evidence-driven-testing"
+    ],
+    "query": "Our checkout tests only click Pay and check a success toast. Propose useful tests for a customer retrying after a timeout, and explain which older tests to keep. Do not edit code.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the evidence-driven-testing skill",
+      "Checks persisted payment/order outcomes and duplicate submission or retry behavior against the payment contract",
+      "Keeps older tests for supported distinct behavior; does not replace them solely because newer journey tests exist",
+      "Uses isolated data and controlled external payment boundaries; does not perform a live charge or start a recording for a test-design request"
+    ]
   }
 ]

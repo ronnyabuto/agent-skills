@@ -73,6 +73,10 @@ validation plan. Explain which assumption or threshold would change the
 recommendation. Include migration and rollback considerations when relevant.
 Use `code-structure` for implementation placement once the design is settled.
 
+For recurring or unattended agent work, read
+[Agent loops](references/agent-loops.md) before choosing polling, classifiers,
+retry behavior, or completion gates.
+
 ## Result
 
 Give a concise decision rationale: the problem or invariant, evidence and

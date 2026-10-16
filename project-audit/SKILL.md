@@ -42,7 +42,11 @@ deliverable is ranked by severity, not grouped by section.
    or unenforced lockfiles, and install scripts or unpinned CI actions that
    run third-party code.
 5. **Test coverage** — what's actually tested vs. what only looks tested. Run
-   the suite and report the real pass/fail, never an assumed one.
+   the relevant suite and report the real pass/fail and untested areas. Assess
+   representative user journeys, persisted outcomes, and failure/recovery paths,
+   not test counts alone. Flag tests that duplicate implementation or mock away
+   the boundary at risk. Recommend retaining, consolidating, or replacing tests
+   by the behavior they protect, not their age; an audit does not authorize deletion.
 6. **Simplification/efficiency** — dead code, premature abstraction, N+1
    patterns, anything a bug fix would need to touch in three places instead of
    one.

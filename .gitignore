@@ -12,3 +12,6 @@ claude/
 
 # harness-managed worktrees (new-feature)
 .claude/worktrees/
+
+# Python test runner output
+__pycache__/
