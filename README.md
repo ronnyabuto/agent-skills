@@ -66,7 +66,10 @@ probes runtime capabilities and leaves hooks uninstalled if unavailable. Obsidia
 is optional. Desktop evidence recording needs Python 3, a drivable GUI, and
 `ffmpeg`/`ffprobe` with libx264 and the ass filter. Headless evidence uses a
 scriptable browser or probe instead. Git task setup needs Git and GitHub CLI;
-trigger evals need Python 3 and an authenticated Claude Code CLI.
+live evals need Python 3 and an authenticated Claude Code CLI. The paired
+outcome runner requires Claude Code ≥ 2.1.300. See
+[compatibility and optional diagnostics](docs/claude-code.md) for the reviewed
+client version, invocation controls, and cooperation with bundled workflows.
 
 For project scope, link individual skill folders into `.claude/skills/` manually.
 Installed skills provide procedures when invoked. Put standing instructions in
@@ -86,35 +89,30 @@ and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
 ## Evaluation and provenance
 
-`evals/*.json` contains 50 scenarios across 12 skills using `skills`, `query`,
-`files`, and `expected_behavior`. The runner scores triggering from the first
-expectation's `Invokes` or `Does not invoke` prefix; behavioral-only cases are
-reported as skipped rather than treated as negative trigger expectations.
-Full workflow compliance needs outcome and transcript review.
-Fixtures use synthetic memory, a local Git origin, and disposable case copies. Live runs use
-installed skills and can incur model usage charges:
+The collection retains 50 trigger scenarios across 12 skills and adds four
+paired outcome cases. Trigger evaluations measure discovery; outcome evaluations
+compare fresh enabled/disabled sessions and grade actual files, returned data,
+retrieved decisions and retained evidence. Neither establishes complete model
+compliance by itself. See [evaluation instructions and rubrics](evals/README.md).
 
 ```bash
-evals/build_fixture.sh /tmp/skill-evals
-python3 evals/run_trigger_evals.py /tmp/skill-evals sonnet managed-audit --max-budget-usd 0.50
+# Offline checks; no model calls
+python3 -m unittest discover -s evals -p 'test_*.py' -v
+python3 vault-memory/scripts/test_vault.py
+
+# Inspect paired cases without running Claude
+python3 evals/run_outcome_evals.py --list
+
+# Live comparison of the current checkout; consumes model usage
+python3 evals/run_outcome_evals.py --model sonnet --case memory-recall --max-budget-usd 0.75
 ```
 
-Each run writes case metadata and a summary to a unique
-`.artifacts/trigger-evals-*.jsonl` file; use `--report <path>` for an explicit new
-file. Records retain turns, elapsed time, session ID, result subtype, estimated
-cost, main-loop `usage`, and whole-tree `modelUsage` when reported. Full
-transcripts are not copied into the report. Failed sessions remain visible and
-their reported cost counts toward the total; missing cost stays unknown.
-Cost per completed eval includes reported failed-session cost and is omitted
-when any executed case lacks cost. It measures eval execution, not task quality
-or subscription billing.
-
-`EVAL_MAX_TURNS` defaults to 6; `--max-turns` overrides it. `--timeout` defaults
-to 400 seconds per case. `--max-budget-usd` (or `EVAL_MAX_BUDGET_USD`) sets an
-optional per-case estimated spend cap, not a suite-wide cap; it may be exceeded.
-The runner does not retry cases and exits nonzero on failed expectations, session
-errors, or no scored cases. Run the local harness checks without model calls:
-`python3 -m unittest discover -s evals -p 'test_*.py' -v`.
+Paired runs keep synthetic workspaces, transcripts, grading evidence and metrics
+in a new private directory under `/tmp/`. The default cap is $0.75 per arm,
+with two arms per case, and may be exceeded. Failed-session costs remain visible;
+missing costs stay unknown. A baseline that passes is a valid result. The existing
+trigger runner still evaluates installed skills and writes metadata to
+`.artifacts/trigger-evals-*.jsonl` without copying full transcripts.
 
 This collection began with `code-structure`, `new-feature`, and
 `evidence-driven-testing` from

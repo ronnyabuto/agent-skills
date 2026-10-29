@@ -49,6 +49,7 @@ class TriggerRunnerTest(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         shutil.copy2(RUNNER, self.root / RUNNER.name)
+        shutil.copy2(RUNNER.with_name("claude_session.py"), self.root / "claude_session.py")
         (self.root / "fixtures" / "webapp").mkdir(parents=True)
         binary = self.root / "bin"
         binary.mkdir()

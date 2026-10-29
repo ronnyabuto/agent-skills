@@ -14,28 +14,15 @@ import math
 import os
 from pathlib import Path
 import shutil
-import subprocess
 import tempfile
-import time
+
+from claude_session import positive_number, run_session
 
 
 EVALS = Path(__file__).resolve().parent
-RESULT_FIELDS = (
-    "session_id", "subtype", "num_turns", "duration_ms", "duration_api_ms",
-    "total_cost_usd", "usage", "modelUsage",
-)
-
-
-def positive_number(value):
-    number = float(value)
-    if not math.isfinite(number) or number <= 0:
-        raise argparse.ArgumentTypeError("must be a finite positive number")
-    return number
 
 
 def run_case(query, skill, args):
-    started = time.monotonic()
-    output, error, returncode = "", None, None
     with tempfile.TemporaryDirectory(prefix="skill-eval-") as case_root:
         name = "agent-skills" if skill == "vault-memory" else "webapp"
         cwd = Path(case_root) / name
@@ -50,50 +37,7 @@ def run_case(query, skill, args):
         ]
         if args.max_budget_usd is not None:
             command += ["--max-budget-usd", str(args.max_budget_usd)]
-        try:
-            proc = subprocess.run(
-                command, cwd=cwd, capture_output=True, text=True,
-                timeout=args.timeout,
-            )
-            output, returncode = proc.stdout, proc.returncode
-            if returncode:
-                error = "process_exit"
-        except subprocess.TimeoutExpired as exc:
-            output = exc.stdout or b""
-            if isinstance(output, bytes):
-                output = output.decode("utf-8", errors="replace")
-            error = "timeout"
-        except OSError as exc:
-            error = type(exc).__name__
-
-    found, result = [], None
-    for line in output.splitlines():
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(event, dict):
-            continue
-        if event.get("type") == "result":
-            result = event
-        if event.get("is_api_error_message"):
-            error = error or "api_error"
-        if event.get("type") == "assistant":
-            for block in event.get("message", {}).get("content", []):
-                if block.get("type") == "tool_use" and block.get("name") == "Skill":
-                    found.append(block.get("input", {}).get("skill", "?"))
-    if result is None:
-        error = error or "missing_result"
-    elif result.get("is_error") or str(result.get("subtype", "")).startswith("error"):
-        error = error or result.get("subtype") or "session_error"
-    elif not result.get("num_turns") and not found:
-        error = error or "empty_session"
-
-    record = {field: result.get(field) if result else None for field in RESULT_FIELDS}
-    record.update(
-        invoked=found, error=error, returncode=returncode,
-        elapsed_seconds=round(time.monotonic() - started, 3),
-    )
+        record, _ = run_session(command, cwd=cwd, timeout=args.timeout)
     return record
 
 

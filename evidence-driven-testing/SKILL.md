@@ -6,298 +6,54 @@ description: >
   asked to prove a fix, demonstrate improvement, design realistic tests, or
   assess which tests to retain or replace. Scale checks to the changed behavior;
   routine edits do not automatically need recordings or new test files.
-compatibility: Recording needs a drivable GUI (computer use or cua-driver), Python 3, and ffmpeg/ffprobe with libx264 and the ass filter; scripts/evidence.py captures on Linux (x11grab, wf-recorder), macOS (avfoundation) and Windows (gdigrab). The headless path needs only the running app and a scriptable browser (e.g. Playwright via npx). Posting needs gh or equivalent.
+compatibility: Optional desktop recording requires Python 3, a drivable GUI, and ffmpeg/ffprobe with libx264 and the ass filter. Headless capture uses the project's browser tooling or a scripted probe.
 metadata:
-  version: "1.3"
+  version: "1.4"
 ---
 
 # Evidence-Driven Testing
 
-Choose evidence proportional to the change. Use existing checks or a focused
-probe for a small local change; recordings are for behavior that needs visual
-proof. Verification does not automatically require adding permanent tests.
-For test selection, realistic scenarios, or replacing older tests, read
-[Useful tests](references/useful-tests.md).
-For test selection alone, use that reference; follow the capture procedure
-below when the task needs recorded or measured evidence.
+Choose evidence proportional to the claim. Existing checks or a focused probe
+usually suffice for a small local change. Add permanent tests for meaningful
+uncovered behavior or regression risk; preserve useful older cases. For test
+selection, realistic scenarios or replacing tests, read
+[Useful tests](references/useful-tests.md). A test-design request alone does not
+require starting the app or recording it.
 
-Once the requested behavior and relevant checks pass, stop. Repeat or broaden
-verification only after a change, failure, or unresolved risk justifies it.
-For visual evidence, record annotated proof and deliver it to the requester;
-post to a PR or tracker only when the task authorizes that publication.
+1. Define the observable behavior or metric, starting conditions and assertions.
+   Identify the revision, uncommitted changes, environment and tested process.
+   For a fix, capture the old failure when reproducible; otherwise disclose its
+   absence. Confirm a running server belongs to this checkout before probing it.
+2. Choose one route and read only that reference:
+   - [Desktop recording](references/recorder.md) for a live GUI interaction.
+     The helper is `${CLAUDE_SKILL_DIR}/scripts/evidence.py`; run its `doctor`
+     first and inspect both toolchain readiness and `capture_ready`.
+   - [Headless capture and probes](references/headless.md) for browser
+     automation, screenshots, APIs, SQL counts, performance or agent behavior.
+3. Drive the actual test and save repeatable scripts plus observed results in
+   a gitignored `.artifacts/<task>/` folder. Record meaningful assertions as
+   `passed`, `failed` or `untested` with a reason. Observe the relevant state
+   before marking it passed. Include persisted outcomes and failure/recovery
+   paths when they are part of the claim.
+4. Review the evidence and report the exact check, result, artifact paths and
+   limitations. A rendered video's `verified` flag establishes media validity,
+   not application correctness. Capture complements relevant tests and builds.
 
-The recording is the capture of you testing the app via computer use: start the
-recorder, then drive the app yourself — click, type, navigate — through each
-test target. Every action in the video is the test being performed live; the
-recording has no value as evidence unless it shows that interactive session.
-If the harness has no computer-use tools but a GUI exists, drive the app with
-`cua-driver` instead (see below) — it is still your live session.
+Claude Code's bundled `/run` and `/verify`, or an existing project launch skill,
+can supply the launch and interaction recipe. Reuse that recipe and existing
+results when they cover the claim; this skill adds assertion records and
+reproducible evidence. Avoid running a second full verification workflow for
+checks that have already passed.
 
-The bundled recorder, `scripts/evidence.py`, captures the display with FFmpeg
-on Linux, macOS, and Windows, timestamps each annotation you add while
-testing, burns them into the video on stop, and verifies the result with
-ffprobe. It writes `evidence.mp4`, `report.md`, and `manifest.json` into the
-session folder.
+Stop once the requested behavior and relevant checks pass. Repeat or broaden
+verification only after a change, failure or unresolved risk justifies it.
 
-## Inputs
+Save locally and deliver to the requester. Publish to a PR, tracker or external
+host only when authorized; naming a PR as context alone does not authorize an
+upload or comment. Keep credentials, personal/customer data and unrelated
+windows out of captures. Evaluate alternatives and permissions before installing
+system packages or changing project dependencies for evidence capture.
 
-- **Test targets** (required): The behaviors/flows to verify, phrased as testable statements.
-- **PR / issue** (optional): Where to post the evidence. If omitted, deliver to the requester only.
-
-## The recorder
-
-`EVIDENCE` below means the path to `scripts/evidence.py` inside this skill's
-folder (wherever the skill is installed, e.g.
-`~/.claude/skills/evidence-driven-testing/scripts/evidence.py`). It needs only
-Python 3 and FFmpeg.
-
-- **Check first**: `python3 $EVIDENCE doctor` — verifies `ffmpeg`, `ffprobe`,
-  `libx264`, and the `ass` filter (`ready`), then which screen-capture source
-  works on this machine (`capture_ready` and the source `auto` will pick).
-  Exits non-zero only when the toolchain is missing; read `capture_ready`
-  before recording.
-- **Platforms** (`--source auto` picks the first available):
-
-  | OS | Source | Needs |
-  |---|---|---|
-  | Linux X11 / XWayland | `x11` (x11grab) | `DISPLAY` set |
-  | Linux Wayland | `wayland` (wf-recorder) | `WAYLAND_DISPLAY` set, `wf-recorder` on PATH, and a compositor confirmed to support wlr-screencopy — either a known wlroots one (Sway, Hyprland, river, Wayfire, labwc, dwl, niri) or verified via `wayland-info`. GNOME and KDE Wayland are not capturable this way; `doctor` says so. Use `x11` through XWayland for X11 apps, or a fallback recorder. `--source wayland` still forces it |
-  | macOS | `avfoundation` | Screen Recording permission granted to the terminal / agent host app; `doctor` lists screen indexes for `--screen-index` |
-  | Windows | `gdigrab` | any standard ffmpeg build; `powershell` for process checks |
-
-  Capture is the full screen by default; `--geometry WxH` and `--offset X,Y`
-  crop a region on x11, wayland, and gdigrab. XWayland only sees X11 windows,
-  so prefer the `wayland` source when the app under test is Wayland-native.
-- **Crash-safe raw capture**: the raw recording is MPEG-TS (`raw.ts`), so if
-  the recorder is killed hard or crashes, what was captured still probes and
-  renders. `stop` remuxes or re-encodes it into a standard `evidence.mp4`.
-- **How stopping works**: on Linux the recorder is signalled through a pidfd.
-  On macOS and Windows `start` launches a small supervisor process that owns
-  the ffmpeg child, and `stop` asks it (via `stop.request` in the session
-  folder) to interrupt, then terminate, then kill; it writes
-  `recorder-exit.json` when done. Nothing ever signals a bare PID, so a
-  recycled PID can't be hit. If the supervisor dies while the recorder is
-  still running, `stop` refuses and tells you which PID to stop by hand. If
-  it died before it could even record which process it started, `stop` stays
-  blocked until you have checked for a stray recorder yourself and rerun it
-  with `--accept-untracked-recorder`; the report then carries that caveat.
-- **Fallback recorders** when `doctor` reports no capture source (for
-  example Wayland without wf-recorder): `cua-driver recording start <dir>` /
-  `stop` (see the cua-driver section), or the OS recorder (macOS:
-  `screencapture -v out.mov`). On these paths there is no annotation overlay,
-  so keep the annotation protocol as files — an `assertions.md` listing each
-  `setup` / `test_start` / `assertion` with its result and the approximate
-  video timestamp, exactly as in the headless path.
-- **Never** present `--source test` (the synthetic pattern generator) as UI
-  evidence. It exists to smoke-test the toolchain.
-- **Toolchain missing** (`doctor` exits non-zero): install ffmpeg from the
-  OS package manager and rerun `doctor`. If that isn't possible in this
-  environment, use the headless path below — don't claim a recording.
-
-## Instructions
-
-### 1. Prepare the screen
-
-- Maximize the browser/app window; close popups, notifications, and extra panels.
-- Navigate to the starting state (logged in, correct page) BEFORE recording, unless setup itself is under test.
-- Note the exact revision under test: `git rev-parse HEAD` and
-  `git branch --show-current` (or the deployment URL) — the recorder stamps
-  them into the report.
-
-### 2. Start recording
-
-- Begin the screen recording before the first meaningful action:
-
-  ```bash
-  python3 $EVIDENCE start \
-    --output .artifacts/<task-name> \
-    --title "<what is being verified>" \
-    --commit "$(git rev-parse HEAD)" --branch "$(git branch --show-current)" \
-    --environment "<OS / browser / display / deployment>"
-  ```
-
-  It prints JSON with a `session` path and the chosen `source`; keep the
-  path (`SESSION=...`) for every later command. The source is auto-detected
-  and the whole screen is captured; pass `--source`, `--geometry`,
-  `--offset`, `--display`/`--xauthority` (X11), `--screen-index` (macOS), or
-  `--output-name` (Wayland) only when `doctor` or the situation calls for it.
-- Add a `setup` annotation describing the starting context:
-
-  ```bash
-  python3 $EVIDENCE annotate "$SESSION" --type setup \
-    --message "Logged in, navigating to connectors page"
-  ```
-
-### 3. Test via computer use, annotating as you go
-
-- Perform every interaction through computer use on the live app — the
-  recording captures your session, so the testing and the evidence are the
-  same act. Work at a watchable pace: let the UI settle after each action so
-  state changes are visible on video.
-- At each named test's start, add a `test_start` annotation in Jest style:
-
-  ```bash
-  python3 $EVIDENCE annotate "$SESSION" --type test_start \
-    --message "It should execute the tool directly when permission is 'always'"
-  ```
-
-- After each check, add an `assertion` annotation with `--result passed`,
-  `failed`, or `untested`:
-
-  ```bash
-  python3 $EVIDENCE annotate "$SESSION" --type assertion --result passed \
-    --message "Tool ran without a permission prompt"
-  ```
-
-- Rules for assertions:
-  - One assertion per meaningful state change — consolidate, don't annotate per UI label.
-  - Use "Precondition: ..." assertions to establish starting state.
-  - Keep under 80 characters, high-signal (the recorder rejects longer messages).
-  - If a test cannot run (missing prerequisite, expired auth window), mark it `untested` with the reason — never skip silently.
-  - The timestamp records when you asserted, not whether it was true — look at
-    the screen before choosing `passed`.
-
-### 4. Stop and review
-
-- Stop recording after the final assertion:
-
-  ```bash
-  python3 $EVIDENCE stop "$SESSION"
-  ```
-
-  This stops the capture (gracefully, so the recorder flushes; escalating
-  only if it ignores the request), burns the annotations into `evidence.mp4`,
-  probes the result, and writes `report.md` and `manifest.json` next to it.
-  It prints `"verified": true` on success; if rendering fails the session is
-  marked `finalization_failed` — fix the reported cause and run `stop` again
-  (a retry does not signal the recorder twice). If the recorder process can no
-  longer be signalled safely (it died, or its PID now belongs to another
-  process), the session is marked `recorder_lost`. Running `stop` again
-  finalizes whatever video was captured, but only once that recorder process
-  is confirmed gone — if it is still alive, stop it first, or the video would
-  be rendered while still being written.
-- Confirm the recording captured the key moments before sharing: extract a
-  frame at each assertion timestamp (`ffmpeg -ss <t> -i evidence.mp4
-  -frames:v 1 frame.png`) and check the state and the label are visible.
-- Fill in the Caveats section of `report.md`; never leave the placeholder.
-
-### 5. Post the evidence
-
-- `report.md` is the report: what was tested, environment + exact commit,
-  pass/fail per test, caveats. Extend it rather than rewriting from scratch.
-- Post the video + summary as a PR comment (embed in the PR description if
-  it's your PR). `gh pr comment` cannot attach a local video — upload
-  `evidence.mp4` through the PR's comment box in an authenticated browser, or
-  upload it to a host you control and link it. Reopen the comment and confirm
-  the video plays before claiming it is posted.
-- Attach the same video to the tracker issue (Linear/Jira) with a one-line result.
-- Send the report + recording to the requester.
-
-## Guardrails
-
-- The video must show the actual test session being driven live. Never present
-  scripted playback, stitched clips, or synthetic footage as a recording; if
-  the harness lacks computer-use tools but a GUI exists, drive via
-  `cua-driver`; with no GUI at all, use the headless path instead.
-- Never record a half-covered or tiled window — maximize first.
-- Never record a screen showing secrets, tokens, customer data, or payment
-  details; if a flow requires them, mark it `untested` and say why.
-- When verifying a fix, show or reference the old failure alongside the new success.
-- Always state the exact commit/branch/deployment tested against.
-
-## No computer-use tools? Drive with cua-driver (GUI available)
-
-When a display exists but the agent has no built-in computer-use capability,
-use [cua-driver](https://github.com/trycua/cua) (macOS / Windows / Linux) as
-the actuator. It is still you testing the app live — the recording rule holds
-unchanged; only the input mechanism differs.
-
-- Verify the setup with `cua-driver doctor` before recording. If a
-  `cua-driver` skill is installed, read it and follow its protocol — the
-  snapshot-before-action invariant is mandatory.
-- Loop per interaction: `launch_app` → `get_window_state` (accessibility tree
-  + screenshot) → act via `element_token` (`click`, `type_text`, `press_key`)
-  → `verify_state` for the expected postcondition. Each `verify_state` check
-  maps 1:1 onto an `assertion` annotation.
-- Wherever `doctor` reports `capture_ready: yes`, keep using the bundled
-  recorder above for the video and the annotations; cua-driver only supplies
-  the input.
-- Otherwise, `cua-driver recording start <output-dir>` / `cua-driver recording
-  stop` is the recorder (the output directory is required, and the daemon
-  must be running: `cua-driver serve`). Video capture is on by default and is
-  finalized to `<output-dir>/recording.mp4` on stop — but on Windows/Linux it
-  shells out to ffmpeg, so a missing ffmpeg or display yields only the
-  per-turn trajectory folders (before/after screenshots, `action.json`,
-  `click.png`), no video. After stopping, verify `recording.mp4` exists
-  before citing it; if it is absent, fix the recorder or present the
-  per-turn before/after screenshots as numbered captures per the headless
-  protocol.
-- If no annotation overlay is available on this path, keep the protocol as
-  files: an `assertions.md` listing each `test_start` / `assertion` with its
-  result, exactly as in the headless path.
-
-## Headless path (no GUI available)
-
-When the agent has no desktop to record, keep the same assertion discipline;
-swap the recorder for scripted capture:
-
-- Save everything to `.artifacts/<task-name>/` (gitignore it — evidence gets
-  uploaded, never committed). Keep the capture script beside the captures so
-  the run is repeatable.
-- **Screenshots**: capture with the same one-off Playwright script
-  (`await page.screenshot({ path: ".artifacts/<task-name>/01-....png" })`,
-  or `locator.screenshot()` for one element).
-- **Video / multi-step flows**: a one-off Playwright script, run without
-  adding playwright to the project's dependencies:
-
-  ```bash
-  npx --yes --package=playwright node record.mjs
-  ```
-
-  (Plain `npx playwright node record.mjs` fails — `node` is not a Playwright
-  CLI command; `--package=playwright` is what puts the module on the path.)
-  Minimal `record.mjs`:
-
-  ```js
-  import { chromium } from "playwright";
-  const browser = await chromium.launch();
-  const context = await browser.newContext({
-    recordVideo: { dir: ".artifacts/<task-name>/" },
-  });
-  const page = await context.newPage();
-  await page.goto("http://localhost:3000/path-under-test");
-  // ...drive the flow, one meaningful state change per step...
-  await context.close(); // finalizes the .webm
-  await browser.close();
-  ```
-
-  Trim or compress with ffmpeg if the file is large.
-- **The annotation protocol becomes files**: number captures in test order
-  with the assertion in the name — `01-precondition-signed-in.png`,
-  `02-it-saves-on-blur-passed.png` — and keep an `assertions.md` in the
-  artifacts folder listing each `test_start` / `assertion` with its result
-  (`passed` / `failed` / `untested` + reason).
-
-## Non-UI changes still need evidence
-
-- **API / performance**: a scripted probe with measured numbers — request
-  counts per phase, latency before/after — captured to `probe-output.txt`.
-- **Rendering / canvas / shader**: rendered frames plus pixel assertions
-  (diff values), reviewed by eye and saved as PNGs.
-- **Agent behavior**: the relevant transcript excerpt showing the tool call
-  and response.
-- **Bug fixes**: reproduce and capture the failure **before** writing the
-  fix — that capture is the "before" half of a before/after pair.
-
-## Capture hygiene
-
-- Confirm the server you're probing is running *your* code (right port,
-  right process), especially when multiple agents share a machine:
-  `lsof -i :<port>` — or where `lsof` isn't installed,
-  `ss -ltnp "sport = :<port>"` to find the listener's PID, then
-  `ps -p <pid> -o args=` to confirm it's yours.
-- Evidence complements the repo's checks (typecheck/build/tests); it never
-  replaces them.
-- For the PR embed, put before/after images side by side in a Markdown
-  table (`| Before | After |`), with the images uploaded through the PR's
-  comment box.
+Never present synthetic frames, stitched playback or static screenshots as a
+recording of live interaction. If capture is unavailable, mark that check
+untested and retain the meaningful evidence that can be obtained.

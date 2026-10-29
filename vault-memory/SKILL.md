@@ -124,8 +124,10 @@ syncs or shows up in Obsidian.
   tokens, JWTs, credentialed URLs, and `*_SECRET=`/`*_TOKEN=`-style
   assignments, not arbitrary personal data. Use `VAULT_MEMORY_EXCLUDE` for
   projects with regulated data, and keep the vault out of public sync.
-- **Concurrent indexing** uses WAL and serialized write transactions with a
-  five-second busy timeout. Longer locks can still fail; hooks log the error.
+- **Concurrent indexing** uses WAL and serialized write transactions. WAL
+  initialization retries only `SQLITE_BUSY` for up to five seconds; indexing
+  transactions retain a five-second busy timeout. Persistent locks still fail;
+  hooks log the error without interrupting the Claude session.
 - **Concurrent sessions** write separate archive files (keyed by session
   id), but two sessions filing a note with the same title overwrite each
   other — last write wins.

@@ -254,15 +254,35 @@ function openIndex() {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
   const key = createHash("sha1").update(VAULT).digest("hex").slice(0, 12);
   const db = new DatabaseSync(path.join(CACHE_DIR, `${key}.sqlite`), { timeout: 5000 });
-  db.exec("PRAGMA journal_mode = WAL");
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS files (path TEXT PRIMARY KEY, mtime REAL, size INTEGER,
-      title TEXT, type TEXT, project TEXT, date TEXT, superseded INTEGER);
-    CREATE VIRTUAL TABLE IF NOT EXISTS chunks USING fts5(
-      path UNINDEXED, title, heading, body, line UNINDEXED,
-      tokenize = 'porter unicode61');
-  `);
-  return db;
+  try {
+    // Concurrent WAL conversions can return SQLITE_BUSY without invoking SQLite's
+    // busy handler. Retry only this initialization step, within the same budget.
+    db.exec("PRAGMA busy_timeout = 0");
+    const deadline = performance.now() + 5000;
+    const pause = new Int32Array(new SharedArrayBuffer(4));
+    while (true) {
+      try {
+        db.exec("PRAGMA journal_mode = WAL");
+        break;
+      } catch (err) {
+        const remaining = deadline - performance.now();
+        if ((err.errcode & 0xff) !== 5 || remaining <= 0) throw err;
+        Atomics.wait(pause, 0, 0, Math.min(25, remaining));
+      }
+    }
+    db.exec("PRAGMA busy_timeout = 5000");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS files (path TEXT PRIMARY KEY, mtime REAL, size INTEGER,
+        title TEXT, type TEXT, project TEXT, date TEXT, superseded INTEGER);
+      CREATE VIRTUAL TABLE IF NOT EXISTS chunks USING fts5(
+        path UNINDEXED, title, heading, body, line UNINDEXED,
+        tokenize = 'porter unicode61');
+    `);
+    return db;
+  } catch (err) {
+    db.close();
+    throw err;
+  }
 }
 
 function walk(dir, out = []) {
