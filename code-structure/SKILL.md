@@ -1,152 +1,20 @@
 ---
 name: code-structure
-description: Decides where new code goes and how much to build. Extend the existing file that owns the behavior instead of creating a new file, build only what was asked (no speculative options, single-implementation abstractions, or unrequested refactors), and move shared mechanics into a service layer only at proven duplication, keeping domain rules (the when/why) in actions. Use before writing code that adds a feature, button, endpoint, field, option, or export to an existing codebase. Also use when multiple workflows duplicate the same operational logic, when deciding what belongs in actions vs shared services, or when refactoring repeated operational blocks across domain flows.
+description: Decide module placement or extract duplicated operational logic when a change raises a concrete code ownership or abstraction question.
 ---
 
-# Service Layer Architecture
+# Code Structure
 
-## Overview
+Fit the requested change into the project's existing architecture. Read the owning code and callers before choosing a location. Do not introduce an actions/service-layer design into a project that uses different boundaries.
 
-**Two-layer separation:** Actions orchestrate domain rules (the "why/when"), while a service layer centralizes reusable operational mechanics (the "how").
+For architectural choices or unclear root causes, use `system-reasoning` to
+establish requirements and evidence before settling implementation placement.
 
-This prevents duplicated code, inconsistent behavior, and bugs fixed in one path but not others.
+- Extend the module that owns the behavior when cohesion stays clear. Create a module when project conventions, a distinct concern, complexity or reuse justify it.
+- Build the requested behavior and the validation/error handling it actually requires. Avoid speculative configurability and unrelated refactors.
+- Extract repeated mechanics when the shared behavior is stable or duplicated fixes are costly. Two or three copies prompt examination, not an automatic extraction threshold. Similar-looking blocks with different policy may belong separately.
+- Where orchestration and shared operations are distinct, keep business policy at its established owner and expose clear inputs, results and failure behavior from reusable operations.
+- Persistence may legitimately belong in repositories or services. A single-implementation interface may serve a real boundary or test seam; judge its purpose rather than its count.
+- Prefer a small coherent abstraction over a universal helper with many flags. Migrate callers incrementally and verify the affected flows.
 
-## When to Use
-
-- Multiple callers need the same low-level operation (sandbox creation, email sending, payment processing)
-- You're copy-pasting operational logic between action files
-- A bug fix in one workflow doesn't propagate to others doing the same thing
-- Adding a new feature that shares mechanics with existing flows
-
-**Don't use when:** Logic is truly domain-specific and used by only one caller.
-
-## Scope and Placement
-
-For system-level choices (architecture, scaling, reliability), use
-`system-reasoning` to establish requirements and compare alternatives first.
-This skill then guides where the chosen implementation belongs and how much
-to build.
-
-Settle these before writing anything; they're the cheapest point to keep a
-change small.
-
-**Where it goes:** into the existing file that already owns the behavior,
-extended in that file's style (read it first — `understand-before-changing`).
-Create a new file only when:
-
-- nothing existing owns the concern,
-- it's a rule-of-three extraction into the service layer (below),
-- the project's convention gives it its own file (tests, migrations, routes,
-  one-component-per-file), or
-- the addition would bolt an unrelated concern onto the existing file.
-
-"It keeps my diff tidy" isn't on the list — a module the next reader has to
-go find costs more than a few lines where they'd already look.
-
-**How much to build:** what was asked, done correctly — nothing speculative.
-
-- No options, flags, or config for variations nobody requested.
-- No interface, base class, or factory with a single implementation.
-- No refactoring or cleanup of surrounding code during a fix; mention it
-  instead.
-
-Small isn't the goal on its own: keep validation at real boundaries, error
-handling on real failure paths, and the test the change needs to be trusted.
-
-## Core Pattern
-
-```
-Orchestration Layer (Actions)          Service Layer (Shared Mechanics)
-├── owns business rules                ├── owns reusable operations
-├── owns state transitions             ├── owns provider/SDK interactions
-├── owns auth/ownership checks         ├── owns command execution details
-├── owns failure classification        ├── owns health checks / readiness
-├── owns retries / user-facing errors  └── returns structured results
-└── calls service functions
-```
-
-**Rule of thumb:**
-- "What this product flow means" → keep in actions
-- "How to do this operation reliably" → move to service layer
-
-## Quick Reference
-
-| Design Principle | Do | Don't |
-|---|---|---|
-| API shape | Composable capability blocks | One giant "do everything" method |
-| Inputs/outputs | Explicit params, structured returns | Hidden global state, reaching into DB |
-| Migration | Extract one block, replace one caller, verify, then migrate rest | Refactor everything at once |
-| Domain logic | Keep auth, policy, error classification in actions | Let service mutate domain state directly |
-| Extraction trigger | Third occurrence (rule of three), or a bug that had to be fixed in more than one copy | Extracting at the second copy by reflex, or logic used once |
-
-## Designing Service Functions
-
-Design as **capability blocks**, not monoliths:
-
-```ts
-// Good: composable, each caller chooses what to use
-createManagedSandbox(...)
-prepareRepo(...)
-detectPackageManager(...)
-installDependencies(...)
-runBuildCommand(...)
-startSandboxRuntime(...)
-```
-
-Each function should:
-- Accept all required data as **explicit parameters**
-- Return **structured outputs** (e.g., `{ ready, previewUrl, proxyPort }`)
-- Never reach into database/state directly
-- Make failure explicit (structured results, not swallowed errors)
-
-This lets callers choose strict vs relaxed behavior per flow.
-
-## Migration Checklist
-
-When extracting shared logic:
-
-1. Write the flow in action code first (clear behavior)
-2. Mark repeated operational chunks across callers
-3. Extract **only** repeated, non-domain chunks to service
-4. Replace one caller → verify → replace remaining callers
-5. Keep domain policy in actions (auth, status transitions, error classification)
-6. Run verification: typecheck, lint, confirm all flows still work
-
-## Anti-Patterns
-
-| Anti-Pattern | Problem |
-|---|---|
-| **God service** | One huge function hides all control flow |
-| **Leaky service** | Service mutates database tables directly |
-| **Inconsistent API** | Each function uses different argument styles and error semantics |
-| **Over-abstraction** | Extracting logic used by only one caller |
-| **Wrong abstraction** | A shared function that keeps growing flags and branches so each caller gets its variant — inline it back into the callers and re-extract only what's truly common (duplication is cheaper than the wrong abstraction) |
-
-## Example: Email Service (Simple)
-
-```ts
-// emailService.ts — shared mechanics
-export async function sendWelcomeEmail(params: { to: string; name: string }) {
-  const html = `<h1>Welcome ${escapeHtml(params.name)}</h1>`;
-  await emailProvider.send(params.to, "Welcome", html);
-}
-
-// userSignup.ts — orchestration (owns WHEN to send)
-if (user.marketingOptIn) {
-  await sendWelcomeEmail({ to: user.email, name: user.name });
-}
-
-// adminInvite.ts — orchestration (different business rule, same mechanic)
-await sendWelcomeEmail({ to: invitee.email, name: invitee.name });
-```
-
-## Mental Model
-
-```
-New code?    → The existing file that owns it, unless a new-file condition above holds
-New feature? → Write in action first → Third copy of the same op? → Extract to service
-                                      → Two copies?  → Tolerate it, note it
-                                      → One copy?    → Keep in action
-```
-
-Your architecture in one sentence: **Actions orchestrate domain rules, while the service layer centralizes reusable operational mechanics with a composable, explicit-input API.**
+Explain a non-obvious placement decision when it matters to review. User scope and local architectural rules override generic preferences.

@@ -21,9 +21,9 @@ class VaultTests(unittest.TestCase):
         self.vault.mkdir()
         self.env = dict(os.environ, AGENT_VAULT=str(self.vault), XDG_CACHE_HOME=str(self.root / "cache"))
 
-    def run_cli(self, *args, input=None, check=True):
+    def run_cli(self, *args, input=None, check=True, cwd=None):
         result = subprocess.run(["node", str(SCRIPT), *args], input=input, capture_output=True,
-                                text=True, env=self.env, timeout=30)
+                                text=True, env=self.env, timeout=30, cwd=cwd)
         if check:
             self.assertEqual(result.returncode, 0, result.stderr)
         return result
@@ -147,6 +147,7 @@ class VaultTests(unittest.TestCase):
         note = self.vault / "note.md"
         note.write_text("# preserved\nbody")
         self.run_cli("index")
+
         note.chmod(0)
         try:
             if os.access(note, os.R_OK):
@@ -159,6 +160,78 @@ class VaultTests(unittest.TestCase):
         finally:
             note.chmod(0o600)
         self.run_cli("index")
+
+    def test_repository_identity_separates_names_and_unifies_worktrees(self):
+        first, second = (self.root / name / "api" for name in ("first", "second"))
+        for repo in (first, second):
+            repo.mkdir(parents=True)
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        subprocess.run(["git", "-C", str(first), "-c", "user.name=Fixture", "-c",
+                        "user.email=fixture@example.invalid", "commit", "--allow-empty", "-qm", "Fixture"], check=True)
+        trees = [self.root / ".worktrees/task", first / ".claude/worktrees/task"]
+        for index, tree in enumerate(trees):
+            subprocess.run(["git", "-C", str(first), "worktree", "add", "-q", "-b",
+                            f"task-{index}", str(tree)], check=True)
+        paths = [self.run_cli("note", "--title", "Identity", input="bounded decision", cwd=repo).stdout.strip()
+                 for repo in (first, *trees, second)]
+        self.assertEqual(paths[0].split()[-1], paths[1].split()[-1])
+        self.assertEqual(paths[0].split()[-1], paths[2].split()[-1])
+        self.assertNotEqual(paths[0].split()[-1], paths[3].split()[-1])
+        hook = self.run_cli("hook", input=json.dumps({"hook_event_name": "SessionStart", "cwd": str(first)}))
+        project = next(self.vault.glob("claude/notes/*/identity.md")).parent.name
+        self.assertIn("api-", hook.stdout)
+        self.assertTrue(project.startswith("api-"))
+
+    def test_separate_git_directory_worktrees_share_identity(self):
+        repo, tree = self.root / "app", self.root / "task"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q", "--separate-git-dir", str(self.root / "git-storage"), str(repo)], check=True)
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                        "commit", "--allow-empty", "-qm", "Fixture"], check=True)
+        subprocess.run(["git", "-C", str(repo), "worktree", "add", "-q", "-b", "task", str(tree)], check=True)
+        paths = [self.run_cli("note", "--title", "Identity", input="decision", cwd=cwd).stdout.split()[-1]
+                 for cwd in (repo, tree)]
+        self.assertEqual(paths[0], paths[1])
+
+    def test_legacy_recall_is_preserved_without_assuming_ownership(self):
+        repo = self.root / "api"
+        repo.mkdir()
+        old = self.vault / "claude/notes/api/old.md"
+        old.parent.mkdir(parents=True)
+        old.write_text("---\nproject: api\ntype: note\n---\n# PRIVATE LEGACY TITLE\nCedar legacy decision\n")
+        before = old.read_bytes()
+        hook = self.run_cli("hook", input=json.dumps({"hook_event_name": "SessionStart", "cwd": str(repo)}))
+        self.assertIn("unverified repository ownership", hook.stdout)
+        self.assertIn('--project "api"', hook.stdout)
+        self.assertNotIn("PRIVATE LEGACY TITLE", hook.stdout)
+        self.assertIn("old.md", self.run_cli("search", "Cedar", "--project", "api").stdout)
+        self.assertEqual(old.read_bytes(), before)
+
+    def test_supersede_preserves_body_and_filters_search(self):
+        old, new = (self.vault / name for name in ("old.md", "new.md"))
+        old.write_text("---\nproject: api\nstatus: current\n---\n# Cedar old\nOld decision\n")
+        new.write_text("---\nproject: api\n---\n# Cedar new\nCurrent decision\n")
+        self.run_cli("supersede", "old.md", "--by", "new.md")
+        text = old.read_text()
+        self.assertIn("# Cedar old\nOld decision", text)
+        self.assertNotIn("status: current", text)
+        self.assertNotIn("old.md", self.run_cli("search", "Cedar").stdout)
+        self.assertIn("old.md", self.run_cli("search", "Cedar", "--all").stdout)
+        self.assertNotEqual(self.run_cli("supersede", "old.md", "--by", "new.md", check=False).returncode, 0)
+        self.assertEqual(old.read_text(), text)
+
+    def test_supersede_rejects_escape_missing_and_same_file(self):
+        old = self.vault / "old.md"
+        old.write_text("---\nproject: api\n---\n# Original\n")
+        outside = self.root / "outside.md"
+        outside.write_text("---\n---\nOutside\n")
+        (self.vault / "alias.md").symlink_to(outside)
+        before = old.read_bytes()
+        for target in ("../outside.md", "alias.md", "missing.md", "old.md"):
+            result = self.run_cli("supersede", "old.md", "--by", target, check=False)
+            self.assertNotEqual(result.returncode, 0, target)
+            self.assertEqual(old.read_bytes(), before)
+
 
 
 if __name__ == "__main__":

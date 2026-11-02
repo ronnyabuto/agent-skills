@@ -68,3 +68,36 @@ When checking a newer client, read the official
 and rerun the affected checks. As of this review it lists 2.1.312, including a
 fix for discovering per-directory skills after changing directories. Updating
 Claude itself is separate from installing or editing this collection.
+
+## Evolution review — 2026-11-02
+
+Offline checks were repeated with Claude Code 2.1.300 and Codex CLI 0.166.0
+available locally; `--help` was inspected without model calls. Current official
+docs describe Claude's AGENTS.md fallback starting at 2.1.277, with settings and
+bundled-plugin caveats. Keep `CLAUDE.md`'s `@AGENTS.md` import for compatibility;
+the documented loader avoids duplicate imports. See
+[project memory](https://code.claude.com/docs/en/memory).
+
+The skills remain automatically discoverable. `disable-model-invocation: true`
+is supported but removes automatic discovery; it is not a read-only sandbox or
+a requirement for an audit. Narrow descriptions and existing scope controls
+preserve natural-language audit requests. Codex's analogous opt-in policy uses
+`agents/openai.yaml`, not Claude frontmatter. See
+[Claude skills](https://code.claude.com/docs/en/skills) and
+[Codex skills](https://learn.chatgpt.com/docs/build-skills).
+
+Keep settings-level Claude hooks, payload parsing and Node invocation distinct
+from Codex's trusted user-level hooks and Python transcript adapter. Both
+document SessionStart, PreCompact and SessionEnd, but client lifecycle timing
+and installation are runtime concerns. Hook commands must be trusted; a skill's
+allowed tools are not an OS sandbox. See
+[Claude hooks](https://code.claude.com/docs/en/hooks),
+[Codex hooks](https://learn.chatgpt.com/docs/hooks) and
+[Codex sandbox](https://learn.chatgpt.com/docs/sandboxing).
+
+The recorder now requires successful protocol discovery for automatic Wayland
+selection. It does not infer capability from desktop names or promise capture
+permission from protocol availability. A GNOME/PipeWire backend would need
+portal session management, source selection, stream handling and cancellation;
+it is not a detection patch. See the
+[ScreenCast portal](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html).

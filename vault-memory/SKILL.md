@@ -1,6 +1,6 @@
 ---
 name: vault-memory
-description: Use to recall prior work from the Obsidian vault instead of re-deriving it — past decisions, why something was built a certain way, what a previous or pre-compaction session already tried, or anything the compaction summary dropped. Search with the bundled script and read only the matching line ranges; never load whole notes or the whole vault. Also use to file a durable decision note at the end of a task. Requires Node 22.x >= 22.16 or Node >= 24.
+description: Recall prior Claude decisions or attempts from a configured Markdown vault, or save a durable decision within an authorized memory workflow.
 compatibility: Node 22.x >= 22.16 or Node >= 24 (node:sqlite with FTS5). Obsidian itself is optional — the vault is read as plain Markdown, so the app does not need to be running.
 ---
 
@@ -46,6 +46,7 @@ V=${CLAUDE_SKILL_DIR}/scripts/vault.mjs
 node $V search "oauth refresh race" --project <name>   # ranked hits: path:line, date, snippet
 node $V read claude/sessions/app/2026-09-21-5f4c37ee.md --lines 120:160
 node $V read <path> --section "Compaction 1"            # one heading's content
+node $V supersede <old-path> --by <new-path>             # preserve the old note
 node $V recent --project <name> --limit 5               # newest notes
 echo "<body>" | node $V note --title "..." --tags decision
 ```
@@ -77,8 +78,8 @@ hidden unless `--all` is passed.
    what the repo already records, and never put secrets, credentials, or
    personal data in a note — redaction is a backstop, not a license.
 5. **Supersede instead of silently contradicting.** When a decision
-   changes, add `status: superseded` and `superseded_by: [[new-note]]` to the
-   old note's frontmatter, then write the new one.
+   changes, write the replacement first, then run `supersede <old-path> --by
+   <new-path>` with vault-relative paths. Existing manual metadata still works.
 
 ## Setup (once per machine)
 
@@ -131,3 +132,16 @@ syncs or shows up in Obsidian.
 - **Concurrent sessions** write separate archive files (keyed by session
   id), but two sessions filing a note with the same title overwrite each
   other — last write wins.
+
+## Repository identity and legacy notes
+
+New notes and archives use a readable label plus a hash of the absolute Git
+common-directory path, so linked worktrees share identity and unrelated
+same-named repositories do not. Outside Git, the resolved directory is hashed.
+Moving a repository changes its identity; existing files are never migrated or
+deleted automatically. Use an explicit `--project <old-id>` to recall them.
+
+Legacy basename notes remain searchable with their original `--project <name>`
+and readable at their original paths. Hooks report a legacy group separately
+without injecting its note titles or assuming ownership. Verify its sources
+before using it: legacy notes contain no reliable repository identity.

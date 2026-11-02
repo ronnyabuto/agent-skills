@@ -53,7 +53,7 @@ python3 evals/run_outcome_evals.py --model sonnet --case memory-recall --max-bud
 python3 evals/run_outcome_evals.py --model sonnet --output /tmp/my-skill-outcomes
 ```
 
-Omit `--case` for all four cases; repeat it to select several. Each case runs
+Omit `--case` for all five cases; repeat it to select several. Each case runs
 sequentially in two fresh sessions with identical synthetic starting state and
 prompt. The selected skill is frozen once under `candidates/`, copied to project scope
 in both workspaces and
@@ -67,6 +67,7 @@ so the disabled baseline is not taught the skill's procedure through AGENTS.md.
 | `audit-scope` | Leave source unchanged, identify the actual validation failure with a location and reproduction, and disclose unavailable delegation. |
 | `memory-recall` | Retrieve the current decision and constraint, cite its dated source, avoid adopting superseded advice and use bounded retrieval. |
 | `query-evidence` | Preserve the implementation, retain and execute a replayable probe, show actual SQL traces reducing six queries to one, and preserve all six customer names. |
+| `routine-control` | Correct simple arithmetic without invoking the unrelated current-docs skill. |
 
 The output defaults to a new private `/tmp/skill-outcomes-<timestamp>/` directory.
 An explicit `--output` must be new and outside Git worktrees to avoid inheriting
@@ -85,7 +86,7 @@ project instructions. Keep it until review is finished. It contains:
   output. Worktree metadata remains valid because the workspace stays in place.
 
 `--max-turns` defaults to 16, `--timeout` to 180 seconds, and `--max-budget-usd`
-to $0.75 **per arm**: eight arms for the full suite, with a nominal total of $6.
+to $0.75 **per arm**: ten arms for the full suite, with a nominal total of $7.50.
 The CLI may exceed a spend cap; reported estimated costs are not subscription
 billing. Both runners run without automatic case retries. Outcome errors are
 unscored, invalidate that pair's comparison, and cause a nonzero exit. Reported
@@ -123,3 +124,37 @@ and the configured vault/cache are synthetic, so the runner does not intentional
 read or archive real vault notes. It does not modify global skill installation,
 personal settings or credentials. Delete only the run directory you created
 when its evidence is no longer needed.
+
+## Natural requests and output contracts
+
+`outcome_contracts.json` separates natural user requests from serialization-only
+deliverables and hidden check names. Only the request and deliverable reach the
+agent. No prompt tells it to fetch origin, disclose missing delegation, reject
+superseded notes, or use bounded reads. File names and the query probe JSON
+interface remain explicit so deterministic graders can replay the evidence; this
+is still a constrained artifact-delivery evaluation, not unconstrained chat.
+The request does not give expected counts or customer names.
+
+`routine-control` asks for a standard-library-free arithmetic correction with
+`current-docs` available. It checks correct results and absence of unrelated
+skill use. Both arms should pass; it detects unnecessary activation.
+
+Each summary retains enabled-minus-disabled per-pair token, elapsed-time,
+native turn deltas, alongside outcome scores. Unknown metrics
+stay unknown; error/skipped pairs are excluded. Native turn definitions and
+usage accounting differ by client, so compare deltas within a client/model,
+not absolute Claude and Codex turn counts. A single run is not a latency
+benchmark. Saved contracts and their hash identify the exact prompt definitions.
+
+When both source checkouts are available, run:
+
+```bash
+python3 evals/check_sibling_contracts.py /path/to/other-checkout
+```
+
+This optional check compares shared outcome definitions and four intentionally
+platform-neutral skills. Update both reviewed copies together; do not generate
+one client package from the other. Hook/transcript formats, memory namespaces,
+recorders, installers, worktree environments and runtime adapters intentionally
+remain separate. No sibling checkout is needed for installation or ordinary
+offline tests.

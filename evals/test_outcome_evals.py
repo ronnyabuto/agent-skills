@@ -27,7 +27,7 @@ with open(os.environ["CALL_LOG"], "a") as log:
 print(json.dumps(dict(type="system", subtype="init", model="fake-model", skills=[skill] if arm == "enabled" and mode != "hidden" else [])))
 def call(name, **fields):
     print(json.dumps({"type":"assistant", "message":{"content":[{"type":"tool_use", "name":name, "input":fields}]}}))
-if arm == "enabled":
+if arm == "enabled" and case != "routine-control":
     call("Skill", skill=skill)
 pathlib.Path(".artifacts").mkdir(exist_ok=True)
 if case == "assigned-worktree":
@@ -39,6 +39,8 @@ elif case == "audit-scope":
 elif case == "memory-recall":
     pathlib.Path(".artifacts/recall.md").write_text("73 seconds; 90-second lease, 17 seconds for retries. Source: claude/notes/project/cedar-current.md dated 2026-10-15.")
     call("Read", file_path=str(pathlib.Path(os.environ["AGENT_VAULT"]) / "claude/notes/project/cedar-current.md"), offset=1, limit=20)
+elif case == "routine-control":
+    pathlib.Path("arithmetic.py").write_text("def double(value):\\n    return value * 2\\n")
 elif case == "query-evidence":
     script = pathlib.Path(".artifacts/probe.py")
     script.write_text("import json, sys\\nfrom pathlib import Path\\nsys.path.insert(0, str(Path(__file__).resolve().parents[1]))\\nimport app\\nout = {}\\nfor name in ('before', 'after'):\\n    db = app.connect()\\n    queries = []\\n    db.set_trace_callback(queries.append)\\n    names = getattr(app, name)(db)\\n    out[name] = dict(query_count=len(queries), queries=queries, names=names)\\n    db.close()\\nprint(json.dumps(out))\\n")
@@ -80,16 +82,30 @@ class OutcomeRunnerTest(unittest.TestCase):
         proc, records = self.run_evals()
         self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
         cases = [r for r in records if r["type"] == "case"]
-        self.assertEqual(len(cases), 8)
+        self.assertEqual(len(cases), 10)
         self.assertTrue(all(r["status"] == "pass" for r in cases))
         summary = records[-1]
-        self.assertEqual(summary["comparable_pairs"], 4)
+        self.assertEqual(summary["comparable_pairs"], 5)
+        overhead = records[-1]["paired_overhead"]
+        self.assertEqual(len(overhead), 5)
+        self.assertTrue(all(row["turn_delta"] == 0 for row in overhead))
+        self.assertTrue(all(row["token_delta"] is None for row in overhead))
+        saved = self.root / "run/outcome-contracts.json"
+        self.assertTrue(saved.is_file())
+        self.assertEqual(len(records[0]["contracts_sha256"]), 64)
+        contracts = json.loads(saved.read_text())
+        for record in (r for r in records if r["type"] == "case"):
+            request = json.loads((Path(record["artifacts"]) / "request.json").read_text())
+            definition = contracts[record["case"]]
+            expected = "\n\n".join(part for part in (definition["query"], definition["deliverable"]) if part)
+            self.assertEqual(request["query"], expected)
+            self.assertTrue(any(expected in arg for arg in request["command"]))
         self.assertEqual(summary["pass_rate_delta"], 0)
-        self.assertEqual(summary["total_cost_usd"], 0.8)
-        self.assertEqual(summary["main_loop_tokens"]["enabled"]["input_tokens"], 400)
+        self.assertEqual(summary["total_cost_usd"], 1.0)
+        self.assertEqual(summary["main_loop_tokens"]["enabled"]["input_tokens"], 500)
         self.assertIsNone(summary["main_loop_tokens"]["enabled"]["output_tokens"])
         calls = [json.loads(line) for line in (self.root / "calls.jsonl").read_text().splitlines()]
-        self.assertEqual(len({c["cwd"] for c in calls}), 8)
+        self.assertEqual(len({c["cwd"] for c in calls}), 10)
         for call in calls:
             args = call["args"]
             settings = json.loads(args[args.index("--settings") + 1])
@@ -138,6 +154,14 @@ class OutcomeRunnerTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 1)
         self.assertEqual(records[2]["error"], "disabled_skill_invoked")
         self.assertEqual(records[-1]["comparable_pairs"], 0)
+
+    def test_routine_control_detects_unnecessary_skill_use(self):
+        proc, records = self.run_evals("--case", "routine-control", outcomes={"routine-control:enabled": "contaminated"})
+        self.assertEqual(proc.returncode, 1)
+        enabled = next(r for r in records if r.get("arm") == "enabled")
+        self.assertEqual(enabled["status"], "fail")
+        self.assertTrue(next(c["passed"] for c in enabled["checks"] if c["name"] == "arithmetic outcomes corrected"))
+        self.assertFalse(next(c["passed"] for c in enabled["checks"] if c["name"] == "unrelated skill not used"))
 
     def test_existing_output_is_not_overwritten_or_used_for_model_calls(self):
         output = self.root / "run"

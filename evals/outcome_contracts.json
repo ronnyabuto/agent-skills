@@ -1,0 +1,55 @@
+{
+  "assigned-worktree": {
+    "skill": "new-feature",
+    "query": "Fix days_in_month in calendar_app.py; it returns one extra day. This is the worktree assigned to this task. Do not commit.",
+    "deliverable": "",
+    "checks": [
+      "assigned branch and worktree preserved",
+      "fresh base retained",
+      "calendar outcomes corrected",
+      "main checkout untouched"
+    ]
+  },
+  "audit-scope": {
+    "skill": "managed-audit",
+    "query": "Lead a manager-led audit of api.py and explain its validation defect. Investigation only; leave the source unchanged.",
+    "deliverable": "Save findings in .artifacts/audit.md.",
+    "checks": [
+      "source unchanged",
+      "finding identifies the validation failure and location",
+      "reproduction included",
+      "delegation limitation disclosed"
+    ]
+  },
+  "memory-recall": {
+    "skill": "vault-memory",
+    "query": "Why did we choose the Cedar sync window in the previous session?",
+    "deliverable": "Save the answer in .artifacts/recall.md.",
+    "checks": [
+      "current decision and constraint recalled",
+      "source and date cited",
+      "superseded decision excluded",
+      "bounded source retrieval observed"
+    ]
+  },
+  "query-evidence": {
+    "skill": "evidence-driven-testing",
+    "query": "The dashboard changed from before() to after() in app.py. Show whether it uses fewer SQL requests without changing the returned customers. Leave app.py unchanged.",
+    "deliverable": "Deliver a replayable .artifacts/probe.py and .artifacts/probe-output.json. The JSON interface is {\"before\": {\"query_count\": integer, \"queries\": [SQL strings], \"names\": [strings]}, \"after\": {\"query_count\": integer, \"queries\": [SQL strings], \"names\": [strings]}}. The probe must print the same JSON interface. These are output formats, not an implementation recipe.",
+    "checks": [
+      "implementation unchanged",
+      "repeatable probe retained and executed",
+      "actual SQL traces show six requests becoming one",
+      "customer outcomes preserved"
+    ]
+  },
+  "routine-control": {
+    "skill": "current-docs",
+    "query": "Fix double(value) in arithmetic.py so it returns twice the input. Do not commit.",
+    "deliverable": "",
+    "checks": [
+      "arithmetic outcomes corrected",
+      "unrelated skill not used"
+    ]
+  }
+}

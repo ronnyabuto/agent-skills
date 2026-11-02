@@ -1,6 +1,6 @@
 ---
 name: no-ai-tells-audit
-description: Sweeps an existing codebase for the no-ai-tells patterns, gates each removal through understand-before-changing, edits the source, and verifies nothing broke. Use when asked to sweep an existing codebase for AI-generated/vibe-coded/junior-level tells and remove them — a full-repo remediation pass, not the always-on final-pass discipline of no-ai-tells. Use for "clean up this codebase," "get rid of AI tells," "make this look hand-written."
+description: Remediate AI-style boilerplate across an existing codebase when explicitly asked for a repository-wide readability cleanup; edits source and verifies affected behavior.
 ---
 
 # No AI Tells — Codebase Audit

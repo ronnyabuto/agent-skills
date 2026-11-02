@@ -7,28 +7,12 @@ import subprocess
 import sys
 
 
-CASES = {
-    "assigned-worktree": {
-        "skill": "new-feature",
-        "query": "This directory is your assigned harness worktree on agent/assigned; origin is a local fixture with no GitHub PRs. Fix days_in_month in calendar_app.py (it returns one extra day). Preserve the assigned worktree and branch, verify the base against freshly fetched origin/main, and check leap and non-leap February. Do not commit.",
-        "checks": ["assigned branch and worktree preserved", "fresh base retained", "calendar outcomes corrected", "main checkout untouched"],
-    },
-    "audit-scope": {
-        "skill": "managed-audit",
-        "query": "Lead a manager-led audit of only api.py. Specialist delegation is unavailable here: inspect directly and state that limitation. Report the concrete validation problem with a source location and a reproducible input. This is investigation only: do not edit source or implement fixes. You may write .artifacts/audit.md for your findings; do so and stop at this scope.",
-        "checks": ["source unchanged", "finding identifies the validation failure and location", "reproduction included", "delegation limitation disclosed"],
-    },
-    "memory-recall": {
-        "skill": "vault-memory",
-        "query": "Why did we choose the Cedar sync window in the previous session? Find the actual current decision in the configured vault, including its value, constraint, date and note path. Save the answer to .artifacts/recall.md. Do not invent a rationale or use the superseded decision.",
-        "checks": ["current decision and constraint recalled", "source and date cited", "superseded decision excluded", "bounded source retrieval observed"],
-    },
-    "query-evidence": {
-        "skill": "evidence-driven-testing",
-        "query": "The dashboard query in app.py changed from before() to after(). Prove that it reduces SQL requests while preserving the six customer names. Use this headless environment; no video is needed. Save a repeatable .artifacts/probe.py and its measured .artifacts/probe-output.json. The JSON should contain before and after objects, each with query_count, queries (the actual SQL trace) and names. Run the probe against both implementations. Do not change app.py or publish anything.",
-        "checks": ["implementation unchanged", "repeatable probe retained and executed", "actual SQL traces show six requests becoming one", "customer outcomes preserved"],
-    },
-}
+CASES = json.loads(Path(__file__).with_name("outcome_contracts.json").read_text())
+
+
+def user_prompt(case_id):
+    case = CASES[case_id]
+    return "\n\n".join(part for part in (case["query"], case["deliverable"]) if part)
 
 
 def git(cwd, *args):
@@ -71,6 +55,7 @@ def prepare(case_id, root):
     elif case_id == "audit-scope":
         write(cwd, "api.py", 'def parse_request(body):\n    if not isinstance(body, dict):\n        return {"ok": False, "error": "body must be an object"}\n    email = body.get("email")\n    if not isinstance(email, str):\n        return {"ok": False, "error": "email is required"}\n    return {"ok": True, "email": email}\n')
         context["source_hash"] = digest(cwd / "api.py")
+        write(cwd, "HARNESS.txt", "This fixture has no specialist delegation tools.\n")
     elif case_id == "memory-recall":
         vault = root / "vault"
         write(vault, "claude/notes/project/cedar-current.md", "---\ntype: note\nproject: project\ndate: 2026-10-15\n---\n# Cedar sync window\n\nThe current Cedar sync window is 73 seconds. The upstream lease lasts 90 seconds; keeping 17 seconds for retries prevents lease expiry during recovery. This replaced the 120-second window.\n")
@@ -96,6 +81,8 @@ def after(db):
     return [row[0] for row in db.execute("SELECT name FROM customers ORDER BY id")]
 ''')
         context["source_hash"] = digest(cwd / "app.py")
+    elif case_id == "routine-control":
+        write(cwd, "arithmetic.py", "def double(value):\n    return value + 1\n")
     return context
 
 
@@ -183,4 +170,16 @@ def grade(case_id, context, events):
               {"saved": data, "replay_stdout": replay.stdout if replay else None, "replay_stderr": replay.stderr if replay else None})
         names = ["Ada", "Bo", "Cy", "Dee", "Eli", "Flo"]
         check("customer outcomes preserved", all(data.get(side, {}).get("names") == names for side in ("before", "after")), data)
+    elif case_id == "routine-control":
+        probe = subprocess.run([sys.executable, "-I", "-c",
+            'import runpy,sys,json; f=runpy.run_path(sys.argv[1])["double"]; print(json.dumps([f(x) for x in (-2,0,3)]))',
+            str(cwd / "arithmetic.py")], capture_output=True, text=True, timeout=10)
+        check("arithmetic outcomes corrected", probe.returncode == 0 and probe.stdout.strip() == "[-4, 0, 6]",
+              {"stdout": probe.stdout, "stderr": probe.stderr})
+        calls = tool_calls(events)
+        used = [call for call in calls if
+                (call["name"] == "Skill" and "current-docs" in str(call.get("input", {})))
+                or ("current-docs" in call.get("input", {}).get("command", "") and "SKILL.md" in call.get("input", {}).get("command", ""))
+                or (call["name"] == "Read" and "current-docs" in call.get("input", {}).get("file_path", ""))]
+        check("unrelated skill not used", not used, used)
     return checks

@@ -10,7 +10,7 @@ the separate Codex package and installation are maintained separately.
 
 | Skill | Use |
 |---|---|
-| [new-feature](new-feature/SKILL.md) | Start tasks in isolated worktrees from a freshly fetched base |
+| [new-feature](new-feature/SKILL.md) | Start task branches; isolate workspaces when needed |
 | [current-docs](current-docs/SKILL.md) | Verify uncertain integrations against version-specific official docs |
 | [system-reasoning](system-reasoning/SKILL.md) | Investigate architectural choices and unclear root causes |
 | [understand-before-changing](understand-before-changing/SKILL.md) | Inspect existing behavior and constraints before editing |
@@ -89,7 +89,7 @@ and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
 ## Evaluation and provenance
 
-The collection retains 50 trigger scenarios across 12 skills and adds four
+The collection retains 50 trigger scenarios across 12 skills and adds five
 paired outcome cases. Trigger evaluations measure discovery; outcome evaluations
 compare fresh enabled/disabled sessions and grade actual files, returned data,
 retrieved decisions and retained evidence. Neither establishes complete model
@@ -118,6 +118,6 @@ This collection began with `code-structure`, `new-feature`, and
 `evidence-driven-testing` from
 [michaelshimeles/skills](https://github.com/michaelshimeles/skills).
 Their procedures have been modified here; the inherited `evidence.py` recorder
-remains unchanged from the initial import. The other skills were authored locally;
+now includes local capability-detection corrections. The other skills were authored locally;
 `managed-audit` adapts the separate Codex skill for documented Claude Code
 capabilities. Attribution records provenance, not a new license grant.

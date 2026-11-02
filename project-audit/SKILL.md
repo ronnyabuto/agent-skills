@@ -1,6 +1,6 @@
 ---
 name: project-audit
-description: Audits a whole codebase — architecture, correctness risk, security (OWASP Top 10:2025), dependencies, tests, operational readiness — and produces a severity-ranked findings report. Use when asked to audit, review, or assess the health of a whole project/codebase — architecture, security, dependencies, test coverage, correctness risk. Use when the user says "audit this project," "review the codebase," "how healthy is this repo," or wants a prioritized findings report rather than a narrow code review of one diff.
+description: Assess whole-project correctness, security, architecture, dependencies, tests, and operations; report prioritized findings when a codebase health audit is requested.
 ---
 
 # Project Audit

@@ -20,7 +20,7 @@ Python 3 and FFmpeg.
   | OS | Source | Needs |
   |---|---|---|
   | Linux X11 / XWayland | `x11` (x11grab) | `DISPLAY` set |
-  | Linux Wayland | `wayland` (wf-recorder) | `WAYLAND_DISPLAY` set, `wf-recorder` on PATH, and a compositor confirmed to support wlr-screencopy — either a known wlroots one (Sway, Hyprland, river, Wayfire, labwc, dwl, niri) or verified via `wayland-info`. GNOME and KDE Wayland are not capturable this way; `doctor` says so. Use `x11` through XWayland for X11 apps, or a fallback recorder. `--source wayland` still forces it |
+  | Linux Wayland | `wayland` (wf-recorder) | `WAYLAND_DISPLAY` set, `wf-recorder` on PATH, and a compositor confirmed to support wlr-screencopy — verified by a successful `wayland-info` or `weston-info` probe. Desktop names alone are not evidence. GNOME/PipeWire capture is not implemented by this backend; use a compatible external recorder. `--source wayland` explicitly attempts capture when probing is unavailable, without guaranteeing success |
   | macOS | `avfoundation` | Screen Recording permission granted to the terminal / agent host app; `doctor` lists screen indexes for `--screen-index` |
   | Windows | `gdigrab` | any standard ffmpeg build; `powershell` for process checks |
 

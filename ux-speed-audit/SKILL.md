@@ -1,6 +1,6 @@
 ---
 name: ux-speed-audit
-description: Measures an app's load speed and interaction responsiveness live and reports findings against Core Web Vitals (LCP, INP, CLS) and Nielsen's response-time limits. Use when asked to audit page load speed, UX responsiveness, or performance — "make it feel instant," "why is this slow," "audit loading speed," Core Web Vitals, perceived performance — and for CLI/desktop cold-start audits.
+description: Measure app load speed and interaction responsiveness when asked to diagnose slow UX, audit Core Web Vitals, or assess desktop or CLI startup.
 ---
 
 # UX / Loading Speed Audit

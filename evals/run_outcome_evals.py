@@ -16,7 +16,7 @@ import subprocess
 import tempfile
 
 from claude_session import positive_number, run_session
-from outcome_cases import CASES, grade, prepare
+from outcome_cases import CASES, grade, prepare, user_prompt
 
 
 SKILLS_ROOT = Path(__file__).resolve().parent.parent
@@ -65,11 +65,15 @@ def run_arm(case_id, arm, args, destination):
                 "XDG_CACHE_HOME": str(destination / "cache")},
     }
     settings["skillOverrides"][skill] = "on" if arm == "enabled" else "off"
-    command = session_command(args, case["query"], settings)
-    (destination / "request.json").write_text(json.dumps({"query": case["query"], "command": command}, indent=2) + "\n")
+    command = session_command(args, user_prompt(case_id), settings)
+    (destination / "request.json").write_text(json.dumps({"query": user_prompt(case_id), "command": command}, indent=2) + "\n")
     env = dict(os.environ, **settings["env"])
     record, events = run_session(command, cwd=cwd, timeout=args.timeout, env=env,
                                  output_dir=destination)
+    usage = record.get("usage") or {}
+    fields = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
+    values = [usage.get(field) for field in fields]
+    record["reported_tokens"] = sum(values) if all(type(v) is int and v >= 0 for v in values) else None
     record.update(type="case", case=case_id, skill=skill, arm=arm,
                   artifacts=str(destination), candidate_sha256=candidate_hash)
     if snapshot_hash(skill_dir) != candidate_hash:
@@ -116,7 +120,15 @@ def summarize(records):
             values = [(r.get("usage") or {}).get(field) for r in runs]
             known = [v for v in values if isinstance(v, int) and not isinstance(v, bool) and v >= 0]
             tokens[arm][field] = sum(known) if len(known) == len(values) else None
-    return dict(type="summary", counts=counts, comparable_pairs=len(pairs), pass_rates=rates,
+    overhead = []
+    for pair in pairs:
+        enabled, disabled = pair["enabled"], pair["disabled"]
+        def difference(field):
+            values = [record.get(field) for record in (enabled, disabled)]
+            return values[0] - values[1] if all(type(v) in (int, float) for v in values) else None
+        overhead.append(dict(case=enabled["case"], elapsed_seconds_delta=difference("elapsed_seconds"),
+                             token_delta=difference("reported_tokens"), turn_delta=difference("num_turns")))
+    return dict(type="summary", counts=counts, paired_overhead=overhead, comparable_pairs=len(pairs), pass_rates=rates,
                 main_loop_tokens=tokens,
                 pass_rate_delta=(rates["enabled"] - rates["disabled"] if pairs else None),
                 observed_cost_usd=round(sum(reported), 8) if reported else None,
@@ -164,6 +176,8 @@ def main():
     if output.exists():
         parser.error(f"output already exists: {output}")
     output.mkdir(mode=0o700)
+    contract_bytes = Path(__file__).with_name("outcome_contracts.json").read_bytes()
+    (output / "outcome-contracts.json").write_bytes(contract_bytes)
     source_root = args.skills_root
     candidates = output / "candidates"
     for skill in dict.fromkeys(CASES[c]["skill"] for c in selected):
@@ -176,7 +190,7 @@ def main():
                           capture_output=True, text=True, timeout=15)
     records = []
     with (output / "report.jsonl").open("x", encoding="utf-8") as report:
-        metadata = dict(type="run", claude_version=version, model=args.model,
+        metadata = dict(contracts_sha256=hashlib.sha256(contract_bytes).hexdigest(), type="run", claude_version=version, model=args.model,
                         skills_root=str(source_root), cases=selected,
                         revision=revision.stdout.strip() if revision.returncode == 0 else None,
                         working_tree=tree.stdout if tree.returncode == 0 else None,

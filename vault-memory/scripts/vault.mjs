@@ -3,6 +3,7 @@
 // needs Node 22.x >= 22.16 or Node >= 24 for node:sqlite (FTS5 + BM25 are compiled in).
 
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -58,6 +59,16 @@ function parseArgs(argv) {
 }
 
 function projectName(cwd) {
+  const resolved = fs.existsSync(cwd) ? fs.realpathSync(cwd) : path.resolve(cwd);
+  const result = spawnSync("git", ["-C", resolved, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+    { encoding: "utf8", timeout: 5000 });
+  const identity = result.status === 0 ? fs.realpathSync(result.stdout.trim()) : resolved;
+  const label = path.basename(identity) === ".git" ? path.basename(path.dirname(identity)) : path.basename(identity);
+  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "project";
+  return `${slug.slice(0, 40)}-${createHash("sha256").update(identity).digest("hex").slice(0, 16)}`;
+}
+
+function legacyProjectName(cwd) {
   const repo = cwd.split(`${path.sep}.claude${path.sep}worktrees${path.sep}`)[0];
   return path.basename(repo) || "unknown";
 }
@@ -557,6 +568,36 @@ function cmdNote({ flags }) {
   console.log(`${existed ? "updated" : "wrote"} ${rel}`);
 }
 
+function vaultFile(relative) {
+  if (!relative || typeof relative !== "string" || path.isAbsolute(relative)
+      || relative.split(/[\\/]/).includes("..")) throw new Error("expected a vault-relative file path");
+  const root = fs.realpathSync(VAULT);
+  const file = fs.realpathSync(path.join(root, relative));
+  if (!file.startsWith(root + path.sep) || !fs.statSync(file).isFile()) throw new Error("path escapes the vault or is not a file");
+  return file;
+}
+
+function cmdSupersede({ positional, flags }) {
+  const old = vaultFile(positional[0]);
+  const replacement = vaultFile(flags.by);
+  if (old === replacement) throw new Error("replacement must be a different existing note");
+  const text = fs.readFileSync(old, "utf8");
+  if (!text.startsWith("---\n") || !text.slice(4).includes("\n---")) throw new Error("note must have frontmatter");
+  const { fm } = parseFrontmatter(text);
+  if (fm.superseded_by) throw new Error("note is already superseded");
+  const end = text.indexOf("\n---", 4);
+  const header = text.slice(4, end).split("\n").filter((line) => !/^status:/.test(line));
+  const updated = `---\n${header.join("\n")}\nstatus: superseded\nsuperseded_by: ${yamlString(flags.by)}${text.slice(end)}`;
+  const temporary = `${old}.${process.pid}.tmp`;
+  try {
+    fs.writeFileSync(temporary, updated, { flag: "wx", mode: fs.statSync(old).mode & 0o777 });
+    fs.renameSync(temporary, old);
+  } finally {
+    if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+  }
+  console.log(positional[0]);
+}
+
 function recallBlock(payload) {
   const cwd = payload.cwd || process.cwd();
   if (!fs.existsSync(VAULT) || isExcluded(cwd)) return "";
@@ -571,8 +612,10 @@ function recallBlock(payload) {
     )
     .all(project);
   const total = db.prepare("SELECT COUNT(*) AS n FROM files WHERE project = ?").get(project).n;
+  const legacy = legacyProjectName(cwd);
+  const legacyTotal = db.prepare("SELECT COUNT(*) AS n FROM files WHERE project = ? AND superseded = 0").get(legacy).n;
   // An empty pointer still steers the model into searching; say nothing instead.
-  if (total === 0) return "";
+  if (total === 0 && legacyTotal === 0) return "";
   // argv[1] keeps the symlinked install path; import.meta resolves through it
   // to wherever the checkout happens to live.
   const script = path.resolve(process.argv[1]);
@@ -582,6 +625,9 @@ function recallBlock(payload) {
     `  node ${script} search "<terms>" --project ${project}`,
     `  node ${script} read <path> --lines A:B`,
   ];
+  if (legacyTotal) {
+    lines.push(`Legacy basename group ${JSON.stringify(legacy)} has ${legacyTotal} notes with unverified repository ownership. If needed, search explicitly with --project ${JSON.stringify(legacy)} and verify each source; unrelated same-named repositories may share this group.`);
+  }
   if (payload.source === "compact") {
     const archived = recent.find((r) => r.path.includes(String(payload.session_id).slice(0, 8)));
     if (archived) {
@@ -644,6 +690,7 @@ const commands = {
   read: cmdRead,
   recent: cmdRecent,
   note: cmdNote,
+  supersede: cmdSupersede,
   index: cmdIndex,
   archive: cmdArchive,
   hook: cmdHook,

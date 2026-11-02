@@ -54,8 +54,6 @@ STOP_REQUEST_NAME = "stop.request"
 RECORDER_EXIT_NAME = "recorder-exit.json"
 RECORDER_COMMAND_NAME = "recorder-command.json"
 WLR_SCREENCOPY_PROTOCOL = "zwlr_screencopy_manager_v1"
-# Compositors known to implement wlr-screencopy; anything else needs a protocol probe.
-WLROOTS_COMPOSITORS = ("sway", "hyprland", "river", "wayfire", "labwc", "dwl", "niri")
 RAW_QUIESCENCE_SECONDS = 1.5
 SUBPROCESS_FLAGS: dict[str, Any] = {}
 if sys.platform == "win32":  # pragma: no cover - Windows
@@ -152,32 +150,26 @@ def detect_avfoundation_screens() -> list[dict[str, Any]]:
 
 
 def wayland_capture_support() -> tuple[bool, str]:
-    """Whether the running Wayland compositor exposes what wf-recorder needs.
-
-    wf-recorder only works on wlroots-style compositors that implement
-    wlr-screencopy; GNOME (Mutter) and KDE (KWin) do not. Prefer asking the
-    compositor via wayland-info; fall back to the session's desktop variables.
-    """
+    """Confirm the protocol required by the wf-recorder backend, not capture permission."""
+    failures = []
     for tool in ("wayland-info", "weston-info"):
-        if shutil.which(tool):
-            try:
-                result = subprocess.run([tool], text=True, capture_output=True, check=False, timeout=5)
-            except (OSError, subprocess.TimeoutExpired) as error:
-                return False, f"{tool} failed: {error}"
-            if WLR_SCREENCOPY_PROTOCOL in result.stdout:
-                return True, f"{tool} reports {WLR_SCREENCOPY_PROTOCOL}"
-            return False, f"{tool} does not list {WLR_SCREENCOPY_PROTOCOL}; this compositor cannot be captured by wf-recorder"
-    desktop = " ".join(
-        os.environ.get(name, "") for name in ("XDG_CURRENT_DESKTOP", "XDG_SESSION_DESKTOP", "DESKTOP_SESSION")
-    ).lower()
-    if any(marker in desktop for marker in ("gnome", "kde", "plasma")):
-        return False, "GNOME/KDE Wayland sessions lack wlr-screencopy, so wf-recorder cannot capture them"
-    known = next((name for name in WLROOTS_COMPOSITORS if name in desktop), None)
-    if known:
-        return True, f"{known} implements {WLR_SCREENCOPY_PROTOCOL}"
+        if not shutil.which(tool):
+            continue
+        try:
+            result = subprocess.run([tool], text=True, capture_output=True, check=False, timeout=5)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            failures.append(f"{tool} failed: {error}")
+            continue
+        if result.returncode != 0:
+            failures.append(f"{tool} exited {result.returncode}")
+            continue
+        if WLR_SCREENCOPY_PROTOCOL in result.stdout:
+            return True, f"{tool} reports {WLR_SCREENCOPY_PROTOCOL}; actual capture may still fail"
+        return False, f"{tool} does not list {WLR_SCREENCOPY_PROTOCOL}; the wf-recorder backend is unavailable"
+    detail = "; ".join(failures) or "no Wayland protocol probe is installed"
     return False, (
-        f"cannot confirm {WLR_SCREENCOPY_PROTOCOL} support for this compositor ({desktop.strip() or 'unknown'}); "
-        "install wayland-info to verify, or pass --source wayland explicitly"
+        f"cannot confirm {WLR_SCREENCOPY_PROTOCOL}: {detail}; "
+        "install wayland-info to verify, or pass --source wayland to attempt capture explicitly"
     )
 
 
@@ -200,7 +192,7 @@ def capture_status() -> dict[str, Any]:
             "display": wayland,
             "reason": wayland_reason,
             "hint": (
-                "needs WAYLAND_DISPLAY, wf-recorder, and a wlroots compositor (Sway, Hyprland, river, ...); "
+                "needs WAYLAND_DISPLAY, wf-recorder, and a successful wlr-screencopy protocol probe; "
                 "on GNOME/KDE use the x11 source through XWayland for X11 apps, or a fallback recorder"
             ),
         },

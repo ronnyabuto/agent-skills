@@ -1,6 +1,6 @@
 ---
 name: system-reasoning
-description: Derives system designs and bug fixes from requirements, invariants, and evidence instead of assuming a familiar pattern fits. Use for architectural tradeoffs, scaling or reliability constraints, unexplained performance bottlenecks, recurring or unclear bugs, concurrency failures, and failures across component boundaries; also when explicitly asked for first-principles reasoning or root-cause analysis. Skip routine CRUD, boilerplate, and local bugs with an already-established cause.
+description: Derive system designs and root-cause fixes from requirements, invariants, and evidence. Use for architectural tradeoffs, scaling or reliability constraints, unexplained bottlenecks, recurring or unclear bugs, concurrency failures, failures across component boundaries, or explicit first-principles/root-cause analysis. Skip routine CRUD and local bugs with an established cause.
 ---
 
 # System Reasoning
