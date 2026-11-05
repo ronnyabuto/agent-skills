@@ -27,6 +27,9 @@ the separate Codex package and installation are maintained separately.
 by themselves authorize changes. Concurrent source writers need separate
 worktrees; performance measurements need a quiet machine.
 
+For production-derived test data, migration rehearsal and release checks, see
+[project-owned data workflows](evidence-driven-testing/references/data-workflows.md).
+
 For recurring workers, `system-reasoning` includes
 [loop admission, retry, and budget guidance](system-reasoning/references/agent-loops.md).
 For verification, `evidence-driven-testing` covers
@@ -89,7 +92,7 @@ and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
 ## Evaluation and provenance
 
-The collection retains 50 trigger scenarios across 12 skills and adds five
+The collection retains 51 trigger scenarios across 12 skills and includes six
 paired outcome cases. Trigger evaluations measure discovery; outcome evaluations
 compare fresh enabled/disabled sessions and grade actual files, returned data,
 retrieved decisions and retained evidence. Neither establishes complete model

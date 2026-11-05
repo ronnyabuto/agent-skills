@@ -51,5 +51,16 @@
       "arithmetic outcomes corrected",
       "unrelated skill not used"
     ]
+  },
+  "data-rehearsal": {
+    "skill": "evidence-driven-testing",
+    "query": "Rehearse the candidate migration in this project and assess its readiness. Leave the candidate and project workflow unchanged. Do not deploy.",
+    "deliverable": "Save .artifacts/rehearsal.json as {\"ready_for_release\": boolean, \"deployment_performed\": boolean, \"results\": [job result objects in execution order]}. Explain limitations in your final response.",
+    "checks": [
+      "candidate and approved workflow unchanged",
+      "approved rehearsal exposes sanitizer fidelity loss",
+      "no export or deployment attempted",
+      "readiness follows observed failure"
+    ]
   }
 }

@@ -101,3 +101,22 @@ permission from protocol availability. A GNOME/PipeWire backend would need
 portal session management, source selection, stream handling and cancellation;
 it is not a detection patch. See the
 [ScreenCast portal](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html).
+
+## Runtime review — 2026-11-05
+
+Local version/help remains 2.1.300; the latest published
+[release](https://github.com/anthropics/claude-code/releases/tag/v2.1.318)
+is 2.1.318 (2026-11-04). No upgrade or live model evaluation was performed.
+Current [instruction-loading documentation](https://code.claude.com/docs/en/memory)
+allows keeping `@AGENTS.md` without loading it twice. Settings-source selection
+alone is not instruction-file isolation. The outcome runner now separately
+bounds instruction loading, omits the disabled entrypoint and rejects unexpected
+visible skills; see the [evaluation limits](../evals/README.md).
+
+The [hook reference](https://code.claude.com/docs/en/hooks#sessionstart-input)
+includes `fork` as a SessionStart source. Default memory hooks now omit the
+source filter, so every supported session start can reach the existing bounded
+recall handler. Installation upgrades only recognizable single-handler defaults;
+custom filters and mixed groups remain intact. Older clients simply emit the
+sources they support. Synthetic merger/handler checks do not prove native event
+delivery, and these source changes do not alter already-installed settings.

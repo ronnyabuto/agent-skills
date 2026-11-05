@@ -66,6 +66,14 @@ class VaultTests(unittest.TestCase):
         self.assertIn("PASSWORD=[REDACTED]", body)
         self.assertIn("context_tokens: 182340", body)
 
+    def test_fork_start_recalls_current_project_and_respects_exclusion(self):
+        self.run_cli("note", "--title", "Synthetic fork decision", input="Keep the fixture invariant.", cwd=self.root)
+        payload = dict(hook_event_name="SessionStart", source="fork", cwd=str(self.root), session_id="fork-fixture")
+        result = self.run_cli("hook", input=json.dumps(payload), cwd=self.root)
+        self.assertIn("Synthetic fork decision", result.stdout)
+        self.env["VAULT_MEMORY_EXCLUDE"] = str(self.root)
+        self.assertEqual(self.run_cli("hook", input=json.dumps(payload), cwd=self.root).stdout, "")
+
     def test_search_keeps_other_files_and_boolean_before_query(self):
         (self.vault / "archive.md").write_text("# oauth race\n" + "\n".join(
             f"## part {i}\nshort body" for i in range(50)))

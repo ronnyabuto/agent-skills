@@ -16,7 +16,7 @@ import subprocess
 import tempfile
 
 from claude_session import positive_number, run_session
-from outcome_cases import CASES, grade, prepare, user_prompt
+from outcome_cases import CASES, grade, prepare, tool_calls, user_prompt
 
 
 SKILLS_ROOT = Path(__file__).resolve().parent.parent
@@ -56,11 +56,16 @@ def run_arm(case_id, arm, args, destination):
     shutil.copytree(args.skills_root / skill, skill_dir,
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     candidate_hash = snapshot_hash(skill_dir)
+    if arm == "disabled":
+        (skill_dir / "SKILL.md").unlink()
+    available_hash = snapshot_hash(skill_dir)
     vault = context.get("vault", destination / "vault")
     vault.mkdir(exist_ok=True)
     settings = {
         "disableAllHooks": True, "autoMemoryEnabled": False, "disableBundledSkills": True,
-        "skillOverrides": {definition["skill"]: "off" for definition in CASES.values()},
+        "skillOverrides": {entry.parent.name: "off" for entry in SKILLS_ROOT.glob("*/SKILL.md")},
+        "pluginConfigs": {"cc-plugin-agents-md@builtin": {"options": {"instructionFiles": "managed-only"}}},
+        "claudeMdExcludes": ["**/CLAUDE.md", "**/CLAUDE.local.md", "**/AGENTS.md", "**/.claude/rules/**"],
         "env": {"AGENT_VAULT": str(vault), "VAULT_MEMORY_EXCLUDE": "",
                 "XDG_CACHE_HOME": str(destination / "cache")},
     }
@@ -74,15 +79,22 @@ def run_arm(case_id, arm, args, destination):
     fields = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
     values = [usage.get(field) for field in fields]
     record["reported_tokens"] = sum(values) if all(type(v) is int and v >= 0 for v in values) else None
-    record.update(type="case", case=case_id, skill=skill, arm=arm,
-                  artifacts=str(destination), candidate_sha256=candidate_hash)
-    if snapshot_hash(skill_dir) != candidate_hash:
+    calls = tool_calls(events)
+    read = any(
+        call["name"] == "Read" and f"/{skill}/SKILL.md" in call.get("input", {}).get("file_path", "")
+        or call["name"] == "Bash" and f"/{skill}/SKILL.md" in call.get("input", {}).get("command", "")
+        for call in calls)
+    record.update(type="case", case=case_id, skill=skill, arm=arm, skill_read=read,
+                  artifacts=str(destination), candidate_sha256=candidate_hash, available_sha256=available_hash)
+    if snapshot_hash(skill_dir) != available_hash:
         record["error"] = record["error"] or "skill_snapshot_changed"
     if arm == "disabled" and skill in record["invoked"]:
         record["error"] = record["error"] or "disabled_skill_invoked"
+    if arm == "disabled" and read:
+        record["error"] = record["error"] or "disabled_skill_read"
     if record["loaded_skills"] is not None:
-        visible = skill in record["loaded_skills"]
-        if visible != (arm == "enabled"):
+        expected = [skill] if arm == "enabled" else []
+        if sorted(record["loaded_skills"]) != expected:
             record["error"] = record["error"] or "skill_visibility_mismatch"
     else:
         record["error"] = record["error"] or "missing_initialization"

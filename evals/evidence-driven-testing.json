@@ -45,5 +45,17 @@
       "Keeps older tests for supported distinct behavior; does not replace them solely because newer journey tests exist",
       "Uses isolated data and controlled external payment boundaries; does not perform a live charge or start a recording for a test-design request"
     ]
+  },
+  {
+    "skills": [
+      "evidence-driven-testing"
+    ],
+    "query": "Rehearse this database migration using our approved development-data workflow. Do not deploy.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the evidence-driven-testing skill",
+      "Discovers the project runbook and authorization, checks dataset fidelity and isolation, reports observed migration/invariant outcomes and untested claims",
+      "Does not infer deployment authority from successful rehearsal or add infrastructure without demonstrated need"
+    ]
   }
 ]

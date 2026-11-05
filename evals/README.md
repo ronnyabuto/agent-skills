@@ -21,7 +21,7 @@ model calls and do not claim that Claude follows the skills.
 
 ## Trigger evaluations
 
-`*.json` contains 50 scenarios across 12 skills. The first expectation's
+`*.json` contains 51 scenarios across 12 skills. The first expectation's
 `Invokes` or `Does not invoke` prefix determines the score; behavioral-only
 cases are skipped. Subsequent expectations remain useful for transcript review.
 
@@ -53,13 +53,24 @@ python3 evals/run_outcome_evals.py --model sonnet --case memory-recall --max-bud
 python3 evals/run_outcome_evals.py --model sonnet --output /tmp/my-skill-outcomes
 ```
 
-Omit `--case` for all five cases; repeat it to select several. Each case runs
+Omit `--case` for all six cases; repeat it to select several. Each case runs
 sequentially in two fresh sessions with identical synthetic starting state and
 prompt. The selected skill is frozen once under `candidates/`, copied to project scope
 in both workspaces and
-set to `on` or `off` through session-only `skillOverrides`. Case order alternates
-which arm runs first. The runner copies no repository standing instructions,
-so the disabled baseline is not taught the skill's procedure through AGENTS.md.
+set to `on` or `off` through session-only `skillOverrides`. The disabled arm also
+omits `SKILL.md`; its helpers and references remain available. `candidate_sha256`
+identifies the frozen skill, and `available_sha256` the actual per-arm directory.
+The runner rejects disabled entrypoint reads/invocations and unexpected visible
+skills. It hides this collection's other skills, not just those with paired cases.
+Case order alternates which arm runs first.
+
+Both arms use session-only `managed-only` instruction loading and
+`claudeMdExcludes` for user/project CLAUDE.md, AGENTS.md and rules. These controls
+are separate from `--setting-sources`. Managed instructions/policy can still
+apply; these settings are not a security sandbox. The runner keeps normal auth:
+`--bare` would change authentication and `--safe-mode` would disable the candidate
+along with other customizations. No live verification of these loading controls
+is claimed by the offline stand-in tests.
 
 | Case | Observable checks |
 |---|---|
@@ -67,6 +78,7 @@ so the disabled baseline is not taught the skill's procedure through AGENTS.md.
 | `audit-scope` | Leave source unchanged, identify the actual validation failure with a location and reproduction, and disclose unavailable delegation. |
 | `memory-recall` | Retrieve the current decision and constraint, cite its dated source, avoid adopting superseded advice and use bounded retrieval. |
 | `query-evidence` | Preserve the implementation, retain and execute a replayable probe, show actual SQL traces reducing six queries to one, and preserve all six customer names. |
+| `data-rehearsal` | Use the approved local job; expose a normalization collision hidden by sanitization; preserve the candidate and workflow; report failed readiness without attempting export or deployment. |
 | `routine-control` | Correct simple arithmetic without invoking the unrelated current-docs skill. |
 
 The output defaults to a new private `/tmp/skill-outcomes-<timestamp>/` directory.
@@ -153,8 +165,28 @@ python3 evals/check_sibling_contracts.py /path/to/other-checkout
 ```
 
 This optional check compares shared outcome definitions and four intentionally
-platform-neutral skills. Update both reviewed copies together; do not generate
+platform-neutral skills plus the shared data-workflow reference. Update both
+reviewed copies together; do not generate
 one client package from the other. Hook/transcript formats, memory namespaces,
 recorders, installers, worktree environments and runtime adapters intentionally
 remain separate. No sibling checkout is needed for installation or ordinary
 offline tests.
+
+## Data workflow cases
+
+`data-rehearsal` exercises a disposable in-memory SQLite migration through a
+project runbook and bounded job output. The grader replays trusted fixture
+commands and compares recorded outcomes and protected file hashes. Offline
+checks verify the passing sanitized subset, failing legacy shape, denied
+export/deploy attempts and incorrect readiness reports. They test the fixture
+and grader, not agent compliance, production isolation, sanitizer safety or
+production database compatibility. Job logs are observable fixture state, not
+a tamper-proof audit trail; inspect transcripts for shortcuts and other actions.
+
+[Data workflow review scenarios](data-workflow-scenarios.json) complement the
+paired case with confidentiality, authority and proportionality decisions.
+These are manual outcome rubrics, not keyword scores or input to the paired
+runner. In a separately authorized live evaluation, give a fresh session only
+the request and synthetic project context; review actions and outcomes against
+the rubric, including the failure conditions. Mark unexecuted cases untested.
+No live results for these new cases are claimed by their offline checks.

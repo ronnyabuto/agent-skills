@@ -125,6 +125,10 @@ if (MODE === "install") {
   for (const [event, groups] of Object.entries(template)) {
     const existing = settings.hooks[event] ?? [];
     if (existing.some((g) => (g.hooks ?? []).some(ours))) {
+      for (const group of existing) {
+        if (event === "SessionStart" && group.matcher === "startup|resume|clear|compact" &&
+            group.hooks?.length === 1 && ours(group.hooks[0])) delete group.matcher;
+      }
       console.log(`  ok      ${event} hook`);
       continue;
     }

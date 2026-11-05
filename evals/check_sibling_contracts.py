@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SHARED_SKILLS = ("code-structure", "current-docs", "no-ai-tells", "understand-before-changing")
+SHARED_REFERENCES = ("evidence-driven-testing/references/data-workflows.md",)
 
 
 def skill_root(repo):
@@ -20,6 +21,9 @@ def compare(first, second):
     for skill in SHARED_SKILLS:
         if (skill_root(first) / skill / "SKILL.md").read_bytes() != (skill_root(second) / skill / "SKILL.md").read_bytes():
             problems.append(f"shared guidance differs: {skill}")
+    for reference in SHARED_REFERENCES:
+        if (skill_root(first) / reference).read_bytes() != (skill_root(second) / reference).read_bytes():
+            problems.append(f"shared guidance differs: {reference}")
     return problems
 
 
@@ -35,7 +39,7 @@ def main():
         for problem in problems:
             print(problem)
         return 1
-    print("Shared outcome contracts and four platform-neutral skills match.")
+    print("Shared outcome contracts, four platform-neutral skills and data guidance match.")
     return 0
 
 

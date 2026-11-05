@@ -4,14 +4,20 @@ description: >
   Choose realistic verification and capture reproducible proof of behavior:
   annotated UI recordings, headless screenshots, or measured probes. Use when
   asked to prove a fix, demonstrate improvement, design realistic tests, or
-  assess which tests to retain or replace. Scale checks to the changed behavior;
-  routine edits do not automatically need recordings or new test files.
+  assess which tests to retain or replace, choose production-derived test data,
+  rehearse migrations, or verify database releases. Scale checks to the changed
+  behavior; routine edits do not automatically need recordings or new test files.
 compatibility: Optional desktop recording requires Python 3, a drivable GUI, and ffmpeg/ffprobe with libx264 and the ass filter. Headless capture uses the project's browser tooling or a scripted probe.
 metadata:
   version: "1.4"
 ---
 
 # Evidence-Driven Testing
+
+For production-derived test data, migration rehearsal or production verification,
+read [Data workflows](references/data-workflows.md). Discover and reuse the
+project's approved route; ordinary fixtures need no production access. Its
+evidence destination and retention rules govern data-workflow artifacts.
 
 Choose evidence proportional to the claim. Existing checks or a focused probe
 usually suffice for a small local change. Add permanent tests for meaningful

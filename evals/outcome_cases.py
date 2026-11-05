@@ -6,6 +6,8 @@ import re
 import subprocess
 import sys
 
+import data_workflow_case
+
 
 CASES = json.loads(Path(__file__).with_name("outcome_contracts.json").read_text())
 
@@ -83,6 +85,8 @@ def after(db):
         context["source_hash"] = digest(cwd / "app.py")
     elif case_id == "routine-control":
         write(cwd, "arithmetic.py", "def double(value):\n    return value + 1\n")
+    elif case_id == "data-rehearsal":
+        context["data_hashes"] = data_workflow_case.prepare(cwd)
     return context
 
 
@@ -182,4 +186,6 @@ def grade(case_id, context, events):
                 or ("current-docs" in call.get("input", {}).get("command", "") and "SKILL.md" in call.get("input", {}).get("command", ""))
                 or (call["name"] == "Read" and "current-docs" in call.get("input", {}).get("file_path", ""))]
         check("unrelated skill not used", not used, used)
+    elif case_id == "data-rehearsal":
+        checks.extend(data_workflow_case.grade(cwd, context["data_hashes"]))
     return checks

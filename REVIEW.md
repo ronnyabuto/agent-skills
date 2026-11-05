@@ -1,3 +1,17 @@
+# Review — November 5, 2026
+
+I kept the data and migration guidance inside the testing skill. It uses the
+project's approved workflow, checks whether sanitization removed the edge case,
+and keeps rehearsal separate from deployment permission.
+
+I fixed the Claude eval baseline leaking disabled skill instructions and the
+memory hooks skipping forked sessions. Custom hook filters and existing notes
+stay intact. There was no reason to rewrite the runtimes or make every skill
+manual-only.
+
+All 41 offline tests pass. Native hook delivery and model-performance gains
+remain untested.
+
 # Review — November 2, 2026
 
 I checked the review claims against the code, history, offline tests and current

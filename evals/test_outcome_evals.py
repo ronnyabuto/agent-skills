@@ -24,7 +24,7 @@ case = pathlib.Path.cwd().parent.parent.name
 mode = json.loads(os.environ.get("FAKE_OUTCOMES", "{} ")).get(case + ":" + arm, "pass")
 with open(os.environ["CALL_LOG"], "a") as log:
     log.write(json.dumps({"args": args, "cwd": str(pathlib.Path.cwd()), "arm": arm}) + "\\n")
-print(json.dumps(dict(type="system", subtype="init", model="fake-model", skills=[skill] if arm == "enabled" and mode != "hidden" else [])))
+print(json.dumps(dict(type="system", subtype="init", model="fake-model", skills=([skill] if arm == "enabled" and mode != "hidden" else []) + (["unrelated-skill"] if mode == "extra-skill" else []))))
 def call(name, **fields):
     print(json.dumps({"type":"assistant", "message":{"content":[{"type":"tool_use", "name":name, "input":fields}]}}))
 if arm == "enabled" and case != "routine-control":
@@ -39,6 +39,12 @@ elif case == "audit-scope":
 elif case == "memory-recall":
     pathlib.Path(".artifacts/recall.md").write_text("73 seconds; 90-second lease, 17 seconds for retries. Source: claude/notes/project/cedar-current.md dated 2026-10-15.")
     call("Read", file_path=str(pathlib.Path(os.environ["AGENT_VAULT"]) / "claude/notes/project/cedar-current.md"), offset=1, limit=20)
+elif case == "data-rehearsal":
+    results = []
+    for profile in ("sanitized", "legacy-shape"):
+        result = subprocess.run([sys.executable, "workflow.py", "rehearse", "--profile", profile], capture_output=True, text=True)
+        results.append(json.loads(result.stdout))
+    pathlib.Path(".artifacts/rehearsal.json").write_text(json.dumps(dict(ready_for_release=False, deployment_performed=False, results=results)))
 elif case == "routine-control":
     pathlib.Path("arithmetic.py").write_text("def double(value):\\n    return value * 2\\n")
 elif case == "query-evidence":
@@ -52,6 +58,8 @@ if mode == "fail":
         pathlib.Path("api.py").write_text("# unauthorized fix")
     elif case == "query-evidence":
         pathlib.Path(".artifacts/probe-output.json").write_text("invalid JSON")
+if mode == "file-read":
+    call("Read", file_path=str(pathlib.Path.cwd() / ".claude/skills" / skill / "SKILL.md"), limit=10)
 if mode == "contaminated":
     call("Skill", skill=skill)
 print(json.dumps(dict(type="result", subtype="success" if mode != "error" else "error_max_budget_usd", is_error=mode == "error", num_turns=3, total_cost_usd=None if mode == "missing-cost" else 0.1, usage={"input_tokens":100}, modelUsage={"fake-model":{"costUSD":0.1}}, session_id="fake-session")))
@@ -82,12 +90,12 @@ class OutcomeRunnerTest(unittest.TestCase):
         proc, records = self.run_evals()
         self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
         cases = [r for r in records if r["type"] == "case"]
-        self.assertEqual(len(cases), 10)
+        self.assertEqual(len(cases), 2 * len(CASES))
         self.assertTrue(all(r["status"] == "pass" for r in cases))
         summary = records[-1]
-        self.assertEqual(summary["comparable_pairs"], 5)
+        self.assertEqual(summary["comparable_pairs"], len(CASES))
         overhead = records[-1]["paired_overhead"]
-        self.assertEqual(len(overhead), 5)
+        self.assertEqual(len(overhead), len(CASES))
         self.assertTrue(all(row["turn_delta"] == 0 for row in overhead))
         self.assertTrue(all(row["token_delta"] is None for row in overhead))
         saved = self.root / "run/outcome-contracts.json"
@@ -101,16 +109,20 @@ class OutcomeRunnerTest(unittest.TestCase):
             self.assertEqual(request["query"], expected)
             self.assertTrue(any(expected in arg for arg in request["command"]))
         self.assertEqual(summary["pass_rate_delta"], 0)
-        self.assertEqual(summary["total_cost_usd"], 1.0)
-        self.assertEqual(summary["main_loop_tokens"]["enabled"]["input_tokens"], 500)
+        self.assertEqual(summary["total_cost_usd"], round(0.2 * len(CASES), 8))
+        self.assertEqual(summary["main_loop_tokens"]["enabled"]["input_tokens"], 100 * len(CASES))
         self.assertIsNone(summary["main_loop_tokens"]["enabled"]["output_tokens"])
         calls = [json.loads(line) for line in (self.root / "calls.jsonl").read_text().splitlines()]
-        self.assertEqual(len({c["cwd"] for c in calls}), 10)
+        self.assertEqual(len({c["cwd"] for c in calls}), 2 * len(CASES))
         for call in calls:
             args = call["args"]
             settings = json.loads(args[args.index("--settings") + 1])
             self.assertTrue(settings["disableAllHooks"])
             self.assertTrue(settings["disableBundledSkills"])
+            self.assertEqual(settings["pluginConfigs"]["cc-plugin-agents-md@builtin"]["options"]["instructionFiles"], "managed-only")
+            self.assertIn("**/CLAUDE.md", settings["claudeMdExcludes"])
+            self.assertIn("**/AGENTS.md", settings["claudeMdExcludes"])
+            self.assertEqual(settings["skillOverrides"]["project-audit"], "off")
             self.assertEqual(args[args.index("--setting-sources") + 1], "project")
             self.assertIn("--strict-mcp-config", args)
             self.assertNotIn("--dangerously-skip-permissions", args)
@@ -121,6 +133,11 @@ class OutcomeRunnerTest(unittest.TestCase):
             self.assertEqual(len(record["candidate_sha256"]), 64)
             self.assertEqual(record["candidate_sha256"], records[0]["candidate_sha256"][record["skill"]])
             self.assertEqual(record["resolved_model"], "fake-model")
+            artifacts = Path(record["artifacts"])
+            project = "assigned" if record["case"] == "assigned-worktree" else "project"
+            entry = artifacts / project / ".claude/skills" / record["skill"] / "SKILL.md"
+            self.assertEqual(entry.exists(), record["arm"] == "enabled")
+            self.assertEqual(len(record["available_sha256"]), 64)
         assigned = self.root / "run/assigned-worktree/enabled/assigned"
         self.assertEqual(subprocess.run(["git", "branch", "--show-current"], cwd=assigned,
                                        capture_output=True, text=True).stdout.strip(), "agent/assigned")
@@ -154,6 +171,21 @@ class OutcomeRunnerTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 1)
         self.assertEqual(records[2]["error"], "disabled_skill_invoked")
         self.assertEqual(records[-1]["comparable_pairs"], 0)
+
+    def test_disabled_skill_file_read_invalidates_apparently_successful_outcome(self):
+        proc, records = self.run_evals("--case", "audit-scope", outcomes={"audit-scope:disabled": "file-read"})
+        self.assertEqual(proc.returncode, 1)
+        disabled = next(r for r in records if r.get("arm") == "disabled")
+        self.assertEqual(disabled["error"], "disabled_skill_read")
+        entry = Path(disabled["artifacts"]) / "project/.claude/skills/managed-audit/SKILL.md"
+        self.assertFalse(entry.exists())
+        self.assertEqual(records[-1]["comparable_pairs"], 0)
+
+    def test_unrelated_visible_skill_invalidates_comparison(self):
+        proc, records = self.run_evals("--case", "audit-scope", outcomes={"audit-scope:enabled": "extra-skill"})
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual(records[1]["error"], "skill_visibility_mismatch")
+        self.assertEqual(records[1]["checks"], [])
 
     def test_routine_control_detects_unnecessary_skill_use(self):
         proc, records = self.run_evals("--case", "routine-control", outcomes={"routine-control:enabled": "contaminated"})
