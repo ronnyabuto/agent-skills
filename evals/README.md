@@ -53,6 +53,23 @@ python3 evals/run_outcome_evals.py --model sonnet --case memory-recall --max-bud
 python3 evals/run_outcome_evals.py --model sonnet --output /tmp/my-skill-outcomes
 ```
 
+For a reproducible Opus 5.5 comparison, select the exact model and effort:
+
+```bash
+python3 evals/run_outcome_evals.py --model claude-opus-5-5 --effort medium --case routine-control
+```
+
+Both runners accept optional `--effort low|medium|high|xhigh|max`. When supplied,
+the runner passes `--effort` and sets `CLAUDE_CODE_EFFORT_LEVEL` in the child
+environment so an inherited effort variable cannot override the requested level.
+Reports record `requested_effort`; it is null when omitted and existing client
+selection remains unchanged. The paired runner records it in `run.json` and the
+trigger runner in case/summary records. This is a requested setting, not proof
+of the server's effective effort: check model support and any managed cap.
+The existing default model remains `sonnet`; `--model` selects the paired model,
+and the trigger runner takes the model as its positional argument. Compare both
+arms at the same explicit model and effort. Live commands consume model usage.
+
 Omit `--case` for all six cases; repeat it to select several. Each case runs
 sequentially in two fresh sessions with identical synthetic starting state and
 prompt. The selected skill is frozen once under `candidates/`, copied to project scope

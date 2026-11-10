@@ -15,7 +15,7 @@ import shutil
 import subprocess
 import tempfile
 
-from claude_session import positive_number, run_session
+from claude_session import EFFORT_LEVELS, positive_number, run_session
 from outcome_cases import CASES, grade, prepare, tool_calls, user_prompt
 
 
@@ -32,7 +32,7 @@ def snapshot_hash(root):
 
 
 def session_command(args, query, settings):
-    return [
+    command = [
         "claude", "-p", query, "--model", args.model,
         "--max-turns", str(args.max_turns), "--max-budget-usd", str(args.max_budget_usd),
         "--output-format", "stream-json", "--verbose", "--no-session-persistence",
@@ -44,6 +44,9 @@ def session_command(args, query, settings):
         "Bash(git *)", "Bash(python3 *)", "Bash(node *)", "Bash(ls *)",
         "Bash(cat *)", "Bash(pwd)", "Bash(rg *)", "Bash(mkdir *)",
     ]
+    if args.effort is not None:
+        command += ["--effort", args.effort]
+    return command
 
 
 def run_arm(case_id, arm, args, destination):
@@ -73,6 +76,8 @@ def run_arm(case_id, arm, args, destination):
     command = session_command(args, user_prompt(case_id), settings)
     (destination / "request.json").write_text(json.dumps({"query": user_prompt(case_id), "command": command}, indent=2) + "\n")
     env = dict(os.environ, **settings["env"])
+    if args.effort is not None:
+        env["CLAUDE_CODE_EFFORT_LEVEL"] = args.effort
     record, events = run_session(command, cwd=cwd, timeout=args.timeout, env=env,
                                  output_dir=destination)
     usage = record.get("usage") or {}
@@ -154,6 +159,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", action="append", choices=CASES, dest="cases")
     parser.add_argument("--model", default="sonnet")
+    parser.add_argument("--effort", choices=EFFORT_LEVELS,
+                        help="Pin requested effort for both arms; otherwise keep client defaults")
     parser.add_argument("--skills-root", type=Path, default=SKILLS_ROOT)
     parser.add_argument("--max-turns", type=int, default=16)
     parser.add_argument("--timeout", type=positive_number, default=180)
@@ -203,7 +210,7 @@ def main():
     records = []
     with (output / "report.jsonl").open("x", encoding="utf-8") as report:
         metadata = dict(contracts_sha256=hashlib.sha256(contract_bytes).hexdigest(), type="run", claude_version=version, model=args.model,
-                        skills_root=str(source_root), cases=selected,
+                        requested_effort=args.effort, skills_root=str(source_root), cases=selected,
                         revision=revision.stdout.strip() if revision.returncode == 0 else None,
                         working_tree=tree.stdout if tree.returncode == 0 else None,
                         max_turns=args.max_turns, timeout=args.timeout,
