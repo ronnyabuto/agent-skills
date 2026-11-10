@@ -23,7 +23,7 @@ arm = "enabled" if settings["skillOverrides"][skill] == "on" else "disabled"
 case = pathlib.Path.cwd().parent.parent.name
 mode = json.loads(os.environ.get("FAKE_OUTCOMES", "{} ")).get(case + ":" + arm, "pass")
 with open(os.environ["CALL_LOG"], "a") as log:
-    log.write(json.dumps({"args": args, "cwd": str(pathlib.Path.cwd()), "arm": arm}) + "\\n")
+    log.write(json.dumps({"args": args, "cwd": str(pathlib.Path.cwd()), "arm": arm, "effort": os.environ.get("CLAUDE_CODE_EFFORT_LEVEL")}) + "\\n")
 print(json.dumps(dict(type="system", subtype="init", model="fake-model", skills=([skill] if arm == "enabled" and mode != "hidden" else []) + (["unrelated-skill"] if mode == "extra-skill" else []))))
 def call(name, **fields):
     print(json.dumps({"type":"assistant", "message":{"content":[{"type":"tool_use", "name":name, "input":fields}]}}))
@@ -94,6 +94,7 @@ class OutcomeRunnerTest(unittest.TestCase):
         self.assertTrue(all(r["status"] == "pass" for r in cases))
         summary = records[-1]
         self.assertEqual(summary["comparable_pairs"], len(CASES))
+        self.assertIsNone(records[0]["requested_effort"])
         overhead = records[-1]["paired_overhead"]
         self.assertEqual(len(overhead), len(CASES))
         self.assertTrue(all(row["turn_delta"] == 0 for row in overhead))
@@ -116,6 +117,7 @@ class OutcomeRunnerTest(unittest.TestCase):
         self.assertEqual(len({c["cwd"] for c in calls}), 2 * len(CASES))
         for call in calls:
             args = call["args"]
+            self.assertNotIn("--effort", args)
             settings = json.loads(args[args.index("--settings") + 1])
             self.assertTrue(settings["disableAllHooks"])
             self.assertTrue(settings["disableBundledSkills"])
@@ -224,6 +226,26 @@ class OutcomeRunnerTest(unittest.TestCase):
             proc, records = self.run_evals("--max-budget-usd", value)
             self.assertEqual(proc.returncode, 2)
             self.assertEqual(records, [])
+        self.assertFalse((self.root / "calls.jsonl").exists())
+
+    def test_explicit_model_and_effort_reach_both_arms(self):
+        self.env["CLAUDE_CODE_EFFORT_LEVEL"] = "high"
+        proc, records = self.run_evals("--case", "routine-control", "--model", "claude-opus-5-5",
+                                       "--effort", "medium")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(records[0]["model"], "claude-opus-5-5")
+        self.assertEqual(records[0]["requested_effort"], "medium")
+        calls = [json.loads(line) for line in (self.root / "calls.jsonl").read_text().splitlines()]
+        self.assertEqual({c["arm"] for c in calls}, {"enabled", "disabled"})
+        for call in calls:
+            self.assertEqual(call["effort"], "medium")
+            self.assertEqual(call["args"][call["args"].index("--model") + 1], "claude-opus-5-5")
+            self.assertEqual(call["args"][call["args"].index("--effort") + 1], "medium")
+
+    def test_invalid_effort_never_starts_a_model(self):
+        proc, records = self.run_evals("--effort", "typo")
+        self.assertEqual(proc.returncode, 2)
+        self.assertEqual(records, [])
         self.assertFalse((self.root / "calls.jsonl").exists())
 
     def test_grader_rejects_claimed_query_reduction_without_matching_replay(self):

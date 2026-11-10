@@ -6,6 +6,10 @@ memory. This repository contains `SKILL.md` procedures, supporting references,
 helper scripts, an installer, and eval fixtures. It is the Claude Code collection;
 the separate Codex package and installation are maintained separately.
 
+For model selection, task scope and measuring context overhead, see
+[efficient use with Claude Opus 5.5](docs/efficient-use.md). This is an on-demand
+guide; installation does not add it to standing instructions.
+
 ## Skills
 
 | Skill | Use |

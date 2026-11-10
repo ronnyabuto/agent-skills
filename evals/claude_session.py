@@ -9,6 +9,9 @@ import subprocess
 import time
 
 
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
+
+
 RESULT_FIELDS = (
     "session_id", "subtype", "num_turns", "duration_ms", "duration_api_ms",
     "total_cost_usd", "usage", "modelUsage",

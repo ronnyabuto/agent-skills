@@ -16,7 +16,7 @@ from pathlib import Path
 import shutil
 import tempfile
 
-from claude_session import positive_number, run_session
+from claude_session import EFFORT_LEVELS, positive_number, run_session
 
 
 EVALS = Path(__file__).resolve().parent
@@ -37,7 +37,11 @@ def run_case(query, skill, args):
         ]
         if args.max_budget_usd is not None:
             command += ["--max-budget-usd", str(args.max_budget_usd)]
-        record, _ = run_session(command, cwd=cwd, timeout=args.timeout)
+        env = None
+        if args.effort is not None:
+            command += ["--effort", args.effort]
+            env = dict(os.environ, CLAUDE_CODE_EFFORT_LEVEL=args.effort)
+        record, _ = run_session(command, cwd=cwd, timeout=args.timeout, env=env)
     return record
 
 
@@ -46,6 +50,8 @@ def main():
     parser.add_argument("fixture_root", type=Path)
     parser.add_argument("model", nargs="?", default="sonnet")
     parser.add_argument("skills", nargs="*")
+    parser.add_argument("--effort", choices=EFFORT_LEVELS,
+                        help="Pin requested effort; otherwise keep client defaults")
     parser.add_argument("--max-turns", type=int, default=os.environ.get("EVAL_MAX_TURNS", "6"))
     parser.add_argument("--timeout", type=positive_number, default=400)
     parser.add_argument("--max-budget-usd", type=positive_number,
@@ -75,6 +81,7 @@ def main():
             should = (True if expected.startswith("Invokes") else
                       False if expected.startswith("Does not invoke") else None)
             record = dict(type="case", skill=skill, case=index, model=args.model,
+                          requested_effort=args.effort,
                           expected_trigger=should, max_turns=args.max_turns,
                           max_budget_usd=args.max_budget_usd, timeout=args.timeout)
             if should is None:
@@ -103,6 +110,7 @@ def main():
         missing = executed - cost_reported
         summary = dict(
             type="summary", **counts, executed=executed, model=args.model,
+            requested_effort=args.effort,
             observed_cost_usd=round(observed_cost, 8) if cost_reported else None,
             cost_reported_cases=cost_reported, cost_missing_cases=missing,
             cost_per_completed_eval_usd=(round(observed_cost / completed, 8)

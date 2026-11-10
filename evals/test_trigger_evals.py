@@ -20,7 +20,7 @@ assert vault.parent.exists()
 assert not pathlib.Path("claimed").exists(), "previous case leaked state"
 pathlib.Path("claimed").write_text("claimed")
 with open(os.environ["CALL_LOG"], "a") as log:
-    log.write(json.dumps({"args": args, "vault": str(vault), "cwd": os.getcwd()}) + "\\n")
+    log.write(json.dumps({"args": args, "vault": str(vault), "cwd": os.getcwd(), "effort": os.environ.get("CLAUDE_CODE_EFFORT_LEVEL")}) + "\\n")
 print("CLI startup notice", flush=True)
 for event in query["events"]:
     print(json.dumps(event), flush=True)
@@ -136,6 +136,30 @@ class TriggerRunnerTest(unittest.TestCase):
                 self.assertEqual(proc.returncode, 2)
                 self.assertEqual(records, [])
                 self.assertFalse((self.root / "calls.jsonl").exists())
+
+    def test_explicit_effort_overrides_inherited_level_and_is_reported(self):
+        self.env["CLAUDE_CODE_EFFORT_LEVEL"] = "high"
+        proc, records = self.run_cases([self.case([invocation(), result()])], "--effort", "medium")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        call = json.loads((self.root / "calls.jsonl").read_text())
+        self.assertEqual(call["effort"], "medium")
+        self.assertEqual(call["args"][call["args"].index("--effort") + 1], "medium")
+        self.assertTrue(all(r["requested_effort"] == "medium" for r in records))
+
+    def test_omitted_effort_preserves_client_selection(self):
+        self.env["CLAUDE_CODE_EFFORT_LEVEL"] = "high"
+        proc, records = self.run_cases([self.case([invocation(), result()])])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        call = json.loads((self.root / "calls.jsonl").read_text())
+        self.assertEqual(call["effort"], "high")
+        self.assertNotIn("--effort", call["args"])
+        self.assertTrue(all(r["requested_effort"] is None for r in records))
+
+    def test_invalid_effort_cannot_launch_a_session(self):
+        proc, records = self.run_cases([self.case([result()])], "--effort", "typo")
+        self.assertEqual(proc.returncode, 2)
+        self.assertEqual(records, [])
+        self.assertFalse((self.root / "calls.jsonl").exists())
 
 
 if __name__ == "__main__":
