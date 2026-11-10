@@ -5,37 +5,46 @@ skill for each query in evals/<skill>.json?
     python3 evals/run_trigger_evals.py /tmp/skill-evals [model] [skill ...]
 
 Tests the skills installed in ~/.claude/skills, so merge description changes
-before measuring them. Each session gets a throwaway AGENT_VAULT through
+before measuring them. Each case gets its own disposable repo copy.
+Each session gets a throwaway AGENT_VAULT through
 --settings (settings-file env outranks the process environment), so eval
 sessions never archive into the real vault. Sessions run in default
 permission mode inside the disposable fixture: plan mode suppresses skill
-invocation and would understate triggering.
+invocation and would understate triggering. Set EVAL_MAX_TURNS to calibrate
+the turn budget for chained workflows.
 """
-import json, os, subprocess, sys, tempfile
+import json, os, shutil, subprocess, sys, tempfile
 
 EVALS = os.path.dirname(os.path.abspath(__file__))
 fixture_root = sys.argv[1]
 model = sys.argv[2] if len(sys.argv) > 2 else "sonnet"
 only = set(sys.argv[3:])
-MAX_TURNS = "6"
+MAX_TURNS = os.environ.get("EVAL_MAX_TURNS", "6")
+if not MAX_TURNS.isdecimal() or int(MAX_TURNS) < 1:
+    raise ValueError("EVAL_MAX_TURNS must be a positive integer")
 
 
-def workspace(skill):
-    if skill == "vault-memory":
-        cwd = os.path.join(fixture_root, "agent-skills")
-        return cwd, cwd
-    return os.path.join(fixture_root, "webapp"), tempfile.mkdtemp(prefix="eval-vault-")
+def workspace(skill, case_root):
+    name = "agent-skills" if skill == "vault-memory" else "webapp"
+    cwd = os.path.join(case_root, name)
+    shutil.copytree(os.path.join(fixture_root, name), cwd)
+    vault = cwd if skill == "vault-memory" else os.path.join(case_root, "vault")
+    return cwd, vault
 
 
 def skills_invoked(query, skill):
-    cwd, vault = workspace(skill)
-    proc = subprocess.run(
-        ["claude", "-p", query, "--model", model, "--max-turns", MAX_TURNS,
-         "--output-format", "stream-json", "--verbose", "--permission-mode", "default",
-         "--settings", json.dumps({"env": {"AGENT_VAULT": vault}})],
-        cwd=cwd, capture_output=True, text=True, timeout=400,
-    )
-    found, turns, failed = [], 0, False
+    with tempfile.TemporaryDirectory(prefix="skill-eval-") as case_root:
+        cwd, vault = workspace(skill, case_root)
+        try:
+            proc = subprocess.run(
+                ["claude", "-p", query, "--model", model, "--max-turns", MAX_TURNS,
+                 "--output-format", "stream-json", "--verbose", "--permission-mode", "default",
+                 "--settings", json.dumps({"env": {"AGENT_VAULT": vault}})],
+                cwd=cwd, capture_output=True, text=True, timeout=400,
+            )
+        except subprocess.TimeoutExpired:
+            return None
+    found, turns, failed = [], 0, proc.returncode != 0
     for line in proc.stdout.splitlines():
         try:
             ev = json.loads(line)

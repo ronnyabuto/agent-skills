@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Searchable Obsidian-vault memory for coding agents. Zero dependencies:
-// needs Node >= 22.5 for node:sqlite (FTS5 + BM25 are compiled in).
+// needs Node 22.x >= 22.16 or Node >= 24 for node:sqlite (FTS5 + BM25 are compiled in).
 
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -46,6 +46,10 @@ function parseArgs(argv) {
       continue;
     }
     const key = a.slice(2);
+    if (key === "all" || key === "rebuild") {
+      flags[key] = true;
+      continue;
+    }
     const next = argv[i + 1];
     if (next === undefined || next.startsWith("--")) flags[key] = true;
     else flags[key] = argv[++i];
@@ -65,6 +69,7 @@ function isExcluded(cwd) {
 const SECRET_PATTERNS = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
   /\b(?:sk|pk|rk)-(?:ant-|proj-|live_|test_)?[A-Za-z0-9_-]{16,}/g,
+  /\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}/g,
   /\bgh[pousr]_[A-Za-z0-9]{30,}/g,
   /\bgithub_pat_[A-Za-z0-9_]{30,}/g,
   /\bxox[abprs]-[A-Za-z0-9-]{10,}/g,
@@ -77,12 +82,10 @@ const SECRET_PATTERNS = [
 const SECRET_ASSIGNMENT =
   /\b([A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|CREDENTIALS?|CONSUMER_KEY|PASSKEY)[A-Z0-9_]*)(\s*[:=]\s*)(["']?)([^\s"']{6,})\3/gi;
 
-// The key names above also appear in prose and metrics ("context_tokens:
-// 182340", "password: required"), so only redact values shaped like a secret:
-// never pure numbers, and plain words only when long enough to be a passphrase.
+// Preserve numeric metrics such as "context_tokens: 182340". Named values
+// of eight or more characters are redacted, including alphabetic passwords.
 function looksSecret(value) {
   if (/^\d+$/.test(value)) return false;
-  if (/^[A-Za-z]+$/.test(value)) return value.length >= 16;
   return value.length >= 8;
 }
 
@@ -121,6 +124,7 @@ function userText(content) {
 
 function cleanPrompt(text) {
   return text
+    .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")
     .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "")
     .replace(/<local-command-(?:stdout|stderr|caveat)>[\s\S]*?<\/local-command-(?:stdout|stderr|caveat)>/g, "")
     .replace(/<command-(?:message|args)>[\s\S]*?<\/command-(?:message|args)>/g, "")
@@ -249,7 +253,8 @@ function archiveSession(payload) {
 function openIndex() {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
   const key = createHash("sha1").update(VAULT).digest("hex").slice(0, 12);
-  const db = new DatabaseSync(path.join(CACHE_DIR, `${key}.sqlite`));
+  const db = new DatabaseSync(path.join(CACHE_DIR, `${key}.sqlite`), { timeout: 5000 });
+  db.exec("PRAGMA journal_mode = WAL");
   db.exec(`
     CREATE TABLE IF NOT EXISTS files (path TEXT PRIMARY KEY, mtime REAL, size INTEGER,
       title TEXT, type TEXT, project TEXT, date TEXT, superseded INTEGER);
@@ -284,6 +289,7 @@ function parseFrontmatter(text) {
 function chunkMarkdown(text, offsetLines) {
   const chunks = [];
   let heading = "";
+  let fence = null;
   let buf = [];
   let bufLine = offsetLines + 1;
   let size = 0;
@@ -298,7 +304,17 @@ function chunkMarkdown(text, offsetLines) {
 
   lines.forEach((line, i) => {
     const lineNo = offsetLines + i + 1;
-    const h = line.match(/^#{1,4}\s+(.*)/);
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    const inFence = Boolean(fence);
+    if (marker) {
+      const run = marker[1];
+      if (fence) {
+        if (run[0] === fence.char && run.length >= fence.length && !marker[2].trim()) fence = null;
+      } else if (run[0] !== "`" || !marker[2].includes("`")) {
+        fence = { char: run[0], length: run.length };
+      }
+    }
+    const h = !inFence && !fence ? line.match(/^#{1,4}\s+(.*)/) : null;
     if (h || size > CHUNK_CHARS) {
       flush();
       bufLine = lineNo;
@@ -313,47 +329,52 @@ function chunkMarkdown(text, offsetLines) {
 
 function syncIndex(db, { rebuild = false } = {}) {
   if (!fs.existsSync(VAULT)) return { indexed: 0, removed: 0, total: 0 };
-  if (rebuild) db.exec("DELETE FROM files; DELETE FROM chunks;");
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    if (rebuild) db.exec("DELETE FROM files; DELETE FROM chunks;");
 
-  const known = new Map(db.prepare("SELECT path, mtime, size FROM files").all().map((r) => [r.path, r]));
-  const seen = new Set();
-  const delChunks = db.prepare("DELETE FROM chunks WHERE path = ?");
-  const delFile = db.prepare("DELETE FROM files WHERE path = ?");
-  const putFile = db.prepare(
-    "INSERT OR REPLACE INTO files (path, mtime, size, title, type, project, date, superseded) VALUES (?,?,?,?,?,?,?,?)",
-  );
-  const putChunk = db.prepare("INSERT INTO chunks (path, title, heading, body, line) VALUES (?,?,?,?,?)");
-  let indexed = 0;
+    const known = new Map(db.prepare("SELECT path, mtime, size FROM files").all().map((r) => [r.path, r]));
+    const seen = new Set();
+    const delChunks = db.prepare("DELETE FROM chunks WHERE path = ?");
+    const delFile = db.prepare("DELETE FROM files WHERE path = ?");
+    const putFile = db.prepare(
+      "INSERT OR REPLACE INTO files (path, mtime, size, title, type, project, date, superseded) VALUES (?,?,?,?,?,?,?,?)",
+    );
+    const putChunk = db.prepare("INSERT INTO chunks (path, title, heading, body, line) VALUES (?,?,?,?,?)");
+    let indexed = 0;
 
-  db.exec("BEGIN");
-  for (const abs of walk(VAULT)) {
-    const rel = path.relative(VAULT, abs);
-    seen.add(rel);
-    const st = fs.statSync(abs);
-    const prev = known.get(rel);
-    if (prev && prev.mtime === st.mtimeMs && prev.size === st.size) continue;
+    for (const abs of walk(VAULT)) {
+      const rel = path.relative(VAULT, abs);
+      seen.add(rel);
+      const st = fs.statSync(abs);
+      const prev = known.get(rel);
+      if (prev && prev.mtime === st.mtimeMs && prev.size === st.size) continue;
 
-    const text = fs.readFileSync(abs, "utf8");
-    const { fm, bodyStart, offsetLines } = parseFrontmatter(text);
-    const body = text.slice(bodyStart);
-    const title = body.match(/^#\s+(.+)$/m)?.[1]?.trim() || path.basename(rel, ".md");
-    const date = (fm.ended || fm.date || fm.started || new Date(st.mtimeMs).toISOString()).slice(0, 10);
-    const superseded = fm.status === "superseded" || Boolean(fm.superseded_by) ? 1 : 0;
+      const text = fs.readFileSync(abs, "utf8");
+      const { fm, bodyStart, offsetLines } = parseFrontmatter(text);
+      const body = text.slice(bodyStart);
+      const title = body.match(/^#\s+(.+)$/m)?.[1]?.trim() || path.basename(rel, ".md");
+      const date = (fm.ended || fm.date || fm.started || new Date(st.mtimeMs).toISOString()).slice(0, 10);
+      const superseded = fm.status === "superseded" || Boolean(fm.superseded_by) ? 1 : 0;
 
-    delChunks.run(rel);
-    putFile.run(rel, st.mtimeMs, st.size, title, fm.type || "note", fm.project || "", date, superseded);
-    for (const c of chunkMarkdown(body, offsetLines)) putChunk.run(rel, title, c.heading, c.body, c.line);
-    indexed++;
+      delChunks.run(rel);
+      putFile.run(rel, st.mtimeMs, st.size, title, fm.type || "note", fm.project || "", date, superseded);
+      for (const c of chunkMarkdown(body, offsetLines)) putChunk.run(rel, title, c.heading, c.body, c.line);
+      indexed++;
+    }
+    let removed = 0;
+    for (const rel of known.keys()) {
+      if (seen.has(rel)) continue;
+      delChunks.run(rel);
+      delFile.run(rel);
+      removed++;
+    }
+    db.exec("COMMIT");
+    return { indexed, removed, total: seen.size };
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
   }
-  let removed = 0;
-  for (const rel of known.keys()) {
-    if (seen.has(rel)) continue;
-    delChunks.run(rel);
-    delFile.run(rel);
-    removed++;
-  }
-  db.exec("COMMIT");
-  return { indexed, removed, total: seen.size };
 }
 
 function toMatchExpr(query, joiner) {
@@ -375,12 +396,17 @@ function search(db, query, { limit = 8, project, type, all = false } = {}) {
   }
   const where = filters.length ? `AND ${filters.join(" AND ")}` : "";
   const sql = `
-    SELECT c.path, c.heading, c.line, f.date, f.type, f.title,
-           bm25(chunks, 0, 6, 3, 1) AS score,
-           snippet(chunks, 3, '**', '**', ' … ', 18) AS snip
-    FROM chunks c JOIN files f ON f.path = c.path
-    WHERE chunks MATCH ? ${where}
-    ORDER BY score LIMIT ?`;
+    WITH matches AS MATERIALIZED (
+      SELECT c.path, c.heading, c.line, f.date, f.type, f.title, c.rowid AS id,
+             bm25(chunks, 0, 6, 3, 1) AS score,
+             snippet(chunks, 3, '**', '**', ' … ', 18) AS snip
+      FROM chunks c JOIN files f ON f.path = c.path
+      WHERE chunks MATCH ? ${where}
+    ), ranked AS (
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY path ORDER BY score, id) AS n
+      FROM matches
+    )
+    SELECT * FROM ranked WHERE n <= 2 ORDER BY score, path, id LIMIT ?`;
   const stmt = db.prepare(sql);
 
   // AND first for precision; fall back to OR so a single unmatched term
@@ -388,18 +414,9 @@ function search(db, query, { limit = 8, project, type, all = false } = {}) {
   for (const joiner of [" ", " OR "]) {
     const expr = toMatchExpr(query, joiner);
     if (!expr) return [];
-    const rows = stmt.all(expr, ...params, limit * 4);
+    const rows = stmt.all(expr, ...params, limit);
     if (!rows.length) continue;
-    const perFile = new Map();
-    const picked = [];
-    for (const r of rows) {
-      const n = perFile.get(r.path) || 0;
-      if (n >= 2) continue;
-      perFile.set(r.path, n + 1);
-      picked.push(r);
-      if (picked.length >= limit) break;
-    }
-    return picked;
+    return rows;
   }
   return [];
 }

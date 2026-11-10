@@ -1,7 +1,7 @@
 ---
 name: vault-memory
-description: Use to recall prior work from the Obsidian vault instead of re-deriving it — past decisions, why something was built a certain way, what a previous or pre-compaction session already tried, or anything the compaction summary dropped. Search with the bundled script and read only the matching line ranges; never load whole notes or the whole vault. Also use to file a durable decision note at the end of a task. Requires Node >= 22.5.
-compatibility: Node >= 22.5 (node:sqlite with FTS5). Obsidian itself is optional — the vault is read as plain Markdown, so the app does not need to be running.
+description: Use to recall prior work from the Obsidian vault instead of re-deriving it — past decisions, why something was built a certain way, what a previous or pre-compaction session already tried, or anything the compaction summary dropped. Search with the bundled script and read only the matching line ranges; never load whole notes or the whole vault. Also use to file a durable decision note at the end of a task. Requires Node 22.x >= 22.16 or Node >= 24.
+compatibility: Node 22.x >= 22.16 or Node >= 24 (node:sqlite with FTS5). Obsidian itself is optional — the vault is read as plain Markdown, so the app does not need to be running.
 ---
 
 # Vault Memory
@@ -92,6 +92,9 @@ edits their global settings):
    register after the skill is invoked, so session-wide archiving has to
    live in settings.
 2. Set `AGENT_VAULT` in that file's `env` block (default `~/agent-vault`).
+   Keep this folder outside source trees; `.gitignore` does not exclude it
+   from zip/tar or workspace shares. The installer preserves an existing
+   `AGENT_VAULT`; change that setting directly when relocating memory.
    Settings `env` reaches hooks however Claude Code was launched; a shell
    profile export doesn't reach the desktop app or IDE sessions. An
    existing Obsidian vault works; open the folder as a vault in Obsidian to
@@ -121,6 +124,8 @@ syncs or shows up in Obsidian.
   tokens, JWTs, credentialed URLs, and `*_SECRET=`/`*_TOKEN=`-style
   assignments, not arbitrary personal data. Use `VAULT_MEMORY_EXCLUDE` for
   projects with regulated data, and keep the vault out of public sync.
+- **Concurrent indexing** uses WAL and serialized write transactions with a
+  five-second busy timeout. Longer locks can still fail; hooks log the error.
 - **Concurrent sessions** write separate archive files (keyed by session
   id), but two sessions filing a note with the same title overwrite each
   other — last write wins.
