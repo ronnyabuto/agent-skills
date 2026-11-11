@@ -125,6 +125,11 @@ comparison. A passing disabled arm is expected and does not fail the run.
 
 ## Interpretation and limits
 
+Both arms suppress personal/project standing instructions. This runner tests the
+selected skill, not a global communication or tool-use policy. A policy comparison
+must deliberately control its injection in otherwise equivalent sessions; changing
+your personal CLAUDE.md does not make it part of these paired cases.
+
 These are small, deterministic rubrics, not a proof of complete workflow
 compliance or a statistical benchmark. They check the documented observable
 contract. They do not establish every reasoning step, absence of fabricated
