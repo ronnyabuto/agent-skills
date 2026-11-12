@@ -1,6 +1,6 @@
 # Using the skills efficiently with Claude Opus 5.5
 
-Keep the twelve skills available on demand. Give Claude the requested outcome,
+Keep the skills available on demand. Give Claude the requested outcome,
 constraints and acceptance check; let it select the procedure that answers the
 actual uncertainty. Do not require the entire collection for every edit.
 
@@ -8,14 +8,11 @@ actual uncertainty. Do not require the entire collection for every edit.
 |---|---|
 | Fresh implementation | `new-feature` once; preserve existing work and verify the base |
 | Established local fix | Inspect the owner and callers, fix it, run the affected check |
-| Unknown workaround or risky removal | `understand-before-changing` |
-| Concrete ownership or duplication question | `code-structure` |
-| Unclear recurring failure or architecture decision | `system-reasoning` |
 | Uncertain version-specific integration | `current-docs` |
 | Requested proof, test design or measured improvement | `evidence-driven-testing`; choose the relevant reference |
 | Previous decision needed | `vault-memory`; search distinctive terms, then read matching lines |
 | Requested audit | The audit matching the scope; `managed-audit` only for requested coordination |
-| Requested readability cleanup | `no-ai-tells` for a diff; `no-ai-tells-audit` for repository-wide remediation |
+| Requested repository-wide readability cleanup | `no-ai-tells-audit` |
 
 Do not repeat a successful launch, review or verification pass unless something
 changed or a remaining risk requires it. Read referenced skills and documents

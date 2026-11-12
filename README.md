@@ -1,7 +1,7 @@
 # agent-skills
 
-Twelve on-demand [Agent Skills](https://agentskills.io) for Claude Code: task
-setup, code investigation and design, audits, evidence capture, and local vault
+Eight on-demand [Agent Skills](https://agentskills.io) for Claude Code: task
+setup, version-specific docs checks, audits, evidence capture, and local vault
 memory. This repository contains `SKILL.md` procedures, supporting references,
 helper scripts, an installer, and eval fixtures. It is the Claude Code collection;
 the separate Codex package and installation are maintained separately.
@@ -16,10 +16,6 @@ guide; installation does not add it to standing instructions.
 |---|---|
 | [new-feature](new-feature/SKILL.md) | Start task branches; isolate workspaces when needed |
 | [current-docs](current-docs/SKILL.md) | Verify uncertain integrations against version-specific official docs |
-| [system-reasoning](system-reasoning/SKILL.md) | Investigate architectural choices and unclear root causes |
-| [understand-before-changing](understand-before-changing/SKILL.md) | Inspect existing behavior and constraints before editing |
-| [code-structure](code-structure/SKILL.md) | Place logic with its owner; extract concrete duplication |
-| [no-ai-tells](no-ai-tells/SKILL.md) | Remove redundant comments and scaffolding while writing |
 | [evidence-driven-testing](evidence-driven-testing/SKILL.md) | Capture recordings, screenshots, or measured proof |
 | [project-audit](project-audit/SKILL.md) | Report prioritized codebase health findings |
 | [ux-speed-audit](ux-speed-audit/SKILL.md) | Measure loading and interaction responsiveness |
@@ -27,15 +23,12 @@ guide; installation does not add it to standing instructions.
 | [no-ai-tells-audit](no-ai-tells-audit/SKILL.md) | Remediate readability problems across existing source |
 | [vault-memory](vault-memory/SKILL.md) | Archive sessions and recall relevant Markdown notes |
 
-[AGENTS.md](AGENTS.md) explains sequencing and concurrency. Audit findings do not
-by themselves authorize changes. Concurrent source writers need separate
+Audit findings do not by themselves authorize changes. Concurrent source writers need separate
 worktrees; performance measurements need a quiet machine.
 
 For production-derived test data, migration rehearsal and release checks, see
 [project-owned data workflows](evidence-driven-testing/references/data-workflows.md).
 
-For recurring workers, `system-reasoning` includes
-[loop admission, retry, and budget guidance](system-reasoning/references/agent-loops.md).
 For verification, `evidence-driven-testing` covers
 [realistic scenarios and retaining useful tests](evidence-driven-testing/references/useful-tests.md).
 Verification need not add permanent test files; retain checks for meaningful
@@ -96,7 +89,7 @@ and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
 ## Evaluation and provenance
 
-The collection retains 51 trigger scenarios across 12 skills and includes six
+The collection retains 35 trigger scenarios across 8 skills and includes six
 paired outcome cases. Trigger evaluations measure discovery; outcome evaluations
 compare fresh enabled/disabled sessions and grade actual files, returned data,
 retrieved decisions and retained evidence. Neither establishes complete model
@@ -121,8 +114,8 @@ missing costs stay unknown. A baseline that passes is a valid result. The existi
 trigger runner still evaluates installed skills and writes metadata to
 `.artifacts/trigger-evals-*.jsonl` without copying full transcripts.
 
-This collection began with `code-structure`, `new-feature`, and
-`evidence-driven-testing` from
+This collection began with `new-feature`, `evidence-driven-testing` and a
+since-removed `code-structure` skill from
 [michaelshimeles/skills](https://github.com/michaelshimeles/skills).
 Their procedures have been modified here; the inherited `evidence.py` recorder
 now includes local capability-detection corrections. The other skills were authored locally;

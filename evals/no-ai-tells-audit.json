@@ -8,7 +8,7 @@
     "expected_behavior": [
       "Invokes the no-ai-tells-audit skill",
       "Lists each match with file:line, category, and a specific reason before editing",
-      "Runs understand-before-changing before deleting anything that could be load-bearing",
+      "Establishes why load-bearing-looking code exists before deleting it",
       "Runs typecheck/lint/tests after each batch and reports what it deliberately left alone"
     ]
   },
@@ -16,7 +16,7 @@
     "skills": [
       "no-ai-tells-audit"
     ],
-    "query": "Make this repo look like it was written by a careful human — it was vibe-coded.",
+    "query": "Make this repo look like it was written by a careful human \u2014 it was vibe-coded.",
     "files": [],
     "expected_behavior": [
       "Invokes the no-ai-tells-audit skill",
@@ -30,7 +30,8 @@
     "query": "Review my last commit's diff for AI tells.",
     "files": [],
     "expected_behavior": [
-      "Prefers the inline no-ai-tells checklist (single diff) over a whole-repo audit"
+      "Does not invoke the no-ai-tells-audit skill",
+      "Reviews only the last commit's diff rather than sweeping the repository"
     ]
   }
 ]

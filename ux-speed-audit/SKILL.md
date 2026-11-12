@@ -71,6 +71,6 @@ For each finding: the measured number, the target number, the specific fix,
 and the expected improvement if estimable. Rank by user-perceived impact, not
 by how easy the fix is.
 
-If the `evidence-driven-testing` skill is loaded, capture before/after evidence
-for the top 2-3 fixes once applied — a number in a report is weaker proof than
-a recording of the actual before/after.
+The audit reports findings; apply fixes only when separately asked. When fixes
+are applied, use `evidence-driven-testing` to capture before/after measurements
+for the top 2-3.

@@ -15,7 +15,7 @@
     "skills": [
       "vault-memory"
     ],
-    "query": "We just compacted — what was the exact error message we hit before the summary?",
+    "query": "We just compacted \u2014 what was the exact error message we hit before the summary?",
     "files": [],
     "expected_behavior": [
       "Invokes the vault-memory skill",
@@ -26,7 +26,7 @@
     "skills": [
       "vault-memory"
     ],
-    "query": "What does this repo's AGENTS.md say about concurrency?",
+    "query": "What does this repo's AGENTS.md say about paid model evaluations?",
     "files": [],
     "expected_behavior": [
       "Does not invoke vault-memory; reads AGENTS.md directly since the repo answers it"

@@ -24,7 +24,7 @@ case = pathlib.Path.cwd().parent.parent.name
 mode = json.loads(os.environ.get("FAKE_OUTCOMES", "{} ")).get(case + ":" + arm, "pass")
 with open(os.environ["CALL_LOG"], "a") as log:
     log.write(json.dumps({"args": args, "cwd": str(pathlib.Path.cwd()), "arm": arm, "effort": os.environ.get("CLAUDE_CODE_EFFORT_LEVEL")}) + "\\n")
-print(json.dumps(dict(type="system", subtype="init", model="fake-model", skills=([skill] if arm == "enabled" and mode != "hidden" else []) + (["unrelated-skill"] if mode == "extra-skill" else []))))
+print(json.dumps(dict(type="system", subtype="init", model="fake-model", skills=([skill] if arm == "enabled" and mode != "hidden" else []) + (["current-docs"] if mode == "extra-skill" else []) + ["doctor"])))
 def call(name, **fields):
     print(json.dumps({"type":"assistant", "message":{"content":[{"type":"tool_use", "name":name, "input":fields}]}}))
 if arm == "enabled" and case != "routine-control":
@@ -188,6 +188,12 @@ class OutcomeRunnerTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 1)
         self.assertEqual(records[1]["error"], "skill_visibility_mismatch")
         self.assertEqual(records[1]["checks"], [])
+
+    def test_client_provided_skills_are_recorded_without_invalidating(self):
+        proc, records = self.run_evals("--case", "audit-scope")
+        arms = [r for r in records if r.get("type") == "case"]
+        self.assertTrue(all(r["error"] is None for r in arms))
+        self.assertTrue(all(r["other_visible_skills"] == ["doctor"] for r in arms))
 
     def test_routine_control_detects_unnecessary_skill_use(self):
         proc, records = self.run_evals("--case", "routine-control", outcomes={"routine-control:enabled": "contaminated"})

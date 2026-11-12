@@ -37,7 +37,6 @@ does not require rerunning it or changing global configuration.
 |---|---|
 | `/run`, `/verify`, project launch skills | `evidence-driven-testing` reuses their launch recipes and completed checks, then retains assertions, measurements or captures needed to substantiate the claim. |
 | `/code-review` | `project-audit` covers the requested project health scope; `managed-audit` coordinates specialists only when explicitly requested. Do not repeat a review that already answers the question. |
-| `/simplify` | `no-ai-tells` applies local readability conventions while preserving meaningful constraints and useful tests. |
 | Built-in auto memory | `vault-memory` provides an explicit local Markdown archive and keyword search across sessions and decision notes. It requires its own hooks and privacy configuration. |
 
 See the [bundled skills documentation](https://code.claude.com/docs/en/skills#bundled-skills)
@@ -65,9 +64,8 @@ these choices into personal settings.
 
 When checking a newer client, read the official
 [changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
-and rerun the affected checks. As of this review it lists 2.1.312, including a
-fix for discovering per-directory skills after changing directories. Updating
-Claude itself is separate from installing or editing this collection.
+and rerun the affected checks. Updating Claude itself is separate from
+installing or editing this collection.
 
 ## Evolution review — 2026-11-02
 
