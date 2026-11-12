@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SHARED_SKILLS = ("code-structure", "current-docs", "no-ai-tells", "understand-before-changing")
+SHARED_SKILLS = ("current-docs",)
 SHARED_REFERENCES = ("evidence-driven-testing/references/data-workflows.md",)
 
 
@@ -39,7 +39,7 @@ def main():
         for problem in problems:
             print(problem)
         return 1
-    print("Shared outcome contracts, four platform-neutral skills and data guidance match.")
+    print("Shared outcome contracts, the shared current-docs skill and data guidance match.")
     return 0
 
 

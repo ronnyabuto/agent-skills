@@ -23,9 +23,9 @@ nothing is lost, then merge them into the single ranked list below — the
 deliverable is ranked by severity, not grouped by section.
 
 1. **Architecture** — where does domain logic live vs. shared/reusable mechanics?
-   Flag duplicated operational logic across features and god-object services. If
-   the `code-structure` skill is loaded, apply its actions-vs-service-layer lens
-   explicitly.
+   Flag duplicated operational logic that has caused or would require repeated
+   fixes, and god-object services. Judge against the project's own boundaries
+   rather than a preferred layering pattern.
 2. **Correctness risk** — read the actual recent commits and the hottest paths
    (auth, payments, data writes) for logic bugs, not just style issues.
 3. **Security** — pass over the OWASP Top 10:2025: broken access control

@@ -3,87 +3,41 @@ name: no-ai-tells-audit
 description: Remediate AI-style boilerplate across an existing codebase when explicitly asked for a repository-wide readability cleanup; edits source and verifies affected behavior.
 ---
 
-# No AI Tells — Codebase Audit
+# No AI Tells — Codebase Remediation
 
-Full sweep of an existing codebase, not a diff review — go through the whole
-project, not just recent changes. Applies the `no-ai-tells` checklist as a
-one-time remediation pass rather than an ongoing writing discipline.
+A one-time sweep of the whole project, not a diff review. This skill edits
+source: check for other in-flight work on the same files before starting, and
+give concurrent writers separate worktrees.
 
-**Mutates files.** Unlike `project-audit` and `ux-speed-audit`, which mostly
-report, this skill edits the codebase directly — see `AGENTS.md`'s concurrency
-rules before running it alongside other in-flight work.
+## What qualifies
 
-## What counts as a tell
+These are readability heuristics, not evidence of authorship. Flag an instance
+only when inspection shows it isn't earning its place in this codebase.
 
-**Comments:**
-- Restates the line instead of explaining why (`// increment counter` above `i++`)
-- Explains *what* instead of the non-obvious *why*
-- Banner/divider comments (`# ===== Section =====`) in a file or codebase that
-  doesn't otherwise use them — some codebases use section banners on purpose
-- Comments spread evenly everywhere instead of clustering at genuinely hard
-  decision points — and the inverse: real complexity left unexplained while
-  trivial lines get commented
-- Change-history references (`// fixed for issue #123`, `// added for the new
-  signup flow`) — that belongs in the commit message, not the file. Keep links
-  to an upstream bug that a live workaround depends on (`// works around
-  foo#123; remove once fixed`) — they say when the code can go
-- Removed-code narration (`// no longer using X`, `// removed old validation`)
-- Staged/phased narration (`// Step 1: validate`, `// Step 2: process`) instead
-  of just writing the steps as code
-- Untracked TODO/placeholder/stub comments in code that's actually shipped.
-  A tracked TODO — owner or issue ID plus a removal condition — is standard
-  practice (Google's C++ style guide recommends that form); leave it
-- Apologetic or hedging comments ("this might not be the best way but...")
-- Generic, context-free phrasing that doesn't match this codebase's actual tone
+- Comments that restate the code, narrate removed code or change history
+  (`// fixed for #123`), or stage obvious steps (`// Step 1: validate`).
+- Untracked TODOs or stubs in shipped code, and apologetic or hedging comments.
+- Identifiers named after narration order (`step1Result`) or mechanical
+  placeholders where a real name is easy.
+- Naming or formatting that departs from the surrounding file's convention.
+- Defensive checks that repeat validation already enforced one layer up.
+- Tests that mock away the boundary at risk or only assert a mock's configured answer.
 
-These compound rather than appearing alone — e.g. a function where every line
-has a comment restating it, and the one comment that survives cleanup is the
-one explaining an actual choice (a cost parameter, a non-default flag) the
-code doesn't already show. Read the whole function before deciding what to
-cut, not comment-by-comment on a first pass.
-
-**Structure/naming:**
-- Defensive completeness beyond what the real failure modes justify (e.g.
-  re-validating data already validated one layer up)
-- Naming inconsistent with the surrounding file (not verbose or terse in
-  isolation — the *mismatch* with existing convention is the tell)
-- Near-duplicated logic (2-3 blocks 90% identical) instead of one shared path
-- Mechanical placeholder names (`tempData`, `result`, `item`) past the point
-  where a real name is easy
-- Phase-named identifiers — functions/variables/section headers named after
-  narration order rather than what they do (`step1Validate()`, `step1Result`,
-  a `## Step 1: Setup` header) — the staged-narration tell moved into the name
-  instead of a comment above it
-- Test smells: module-wide `jest.mock()` where targeted `spyOn()` would do,
-  redundant `beforeEach` resets "just to be safe," loose `as any`, regex
-  assertions where exact-match works, reimplemented helpers that already exist
-  in the codebase
+Keep: comments explaining non-obvious constraints, invariants, API contracts or
+cost parameters; links to upstream bugs that a live workaround depends on;
+tracked TODOs (owner or issue plus removal condition); license notices; section
+banners the codebase uses on purpose; boundary validation and error recovery.
+Repetition alone is not a defect: collapse duplication only when the shared
+semantics are stable and the policy is the same.
 
 ## Process
 
-1. Scan the codebase and list every match with file:line, the category from
-   above, and a one-line reason it qualifies here specifically — not just that
-   it matches a pattern name.
-2. Apply cumulative-case reasoning, not single-pattern triggers. Full test
-   coverage, complete error handling, and descriptive names are normally good
-   engineering — flag them only when disproportionate to actual risk or
-   inconsistent with this codebase's own convention. Don't strip something
-   just because it matches a category; strip it because inspection confirms
-   it isn't earning its place.
-3. Before deleting or rewriting anything from step 1's list, run it through
-   `understand-before-changing` — a pattern that looks like an AI tell (an
-   over-defensive check, a "redundant" re-validation) can still be
-   load-bearing. Then fix what's confirmed: delete the comment, rename for
-   consistency, collapse the duplication, trim the excess defensiveness.
-   Don't touch comments that are doing real work — a genuine "why" note on a
-   non-obvious constraint stays.
-4. After each batch of changes, verify nothing broke: run the type checker,
-   linter, and test suite. A comment-stripping pass that breaks the build is a
-   regression, not a cleanup.
-5. Report what changed as a short list (category, count, example), not a
-   diff dump — and call out anything you deliberately left alone because it
-   didn't actually qualify on inspection, so the report doesn't read as
-   padded.
-
-If `evidence-driven-testing` is loaded, use it after step 4 to capture proof
-the remediation didn't break behavior.
+1. Inventory matches with `file:line`, category and a reason specific to that
+   instance. Read the whole function before cutting its comments.
+2. Before removing a check, workaround or "redundant" path, establish why it
+   exists from callers, tests and history. Leave it when the purpose is unknown
+   and the risk is real.
+3. Fix in batches. After each batch run the project's type checker, linter and
+   affected tests; a cleanup that breaks the build is a regression.
+4. Report changes as a short list (category, count, example) and name what you
+   deliberately left alone and why.

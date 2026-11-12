@@ -98,8 +98,11 @@ def run_arm(case_id, arm, args, destination):
     if arm == "disabled" and read:
         record["error"] = record["error"] or "disabled_skill_read"
     if record["loaded_skills"] is not None:
+        collection = {entry.parent.name for entry in SKILLS_ROOT.glob("*/SKILL.md")} | {skill}
         expected = [skill] if arm == "enabled" else []
-        if sorted(record["loaded_skills"]) != expected:
+        # Client-provided skills are recorded, not rejected; only this collection's skills are controlled per arm.
+        record["other_visible_skills"] = sorted(set(record["loaded_skills"]) - collection)
+        if sorted(set(record["loaded_skills"]) & collection) != expected:
             record["error"] = record["error"] or "skill_visibility_mismatch"
     else:
         record["error"] = record["error"] or "missing_initialization"

@@ -1,3 +1,21 @@
+# Review — November 12, 2026
+
+Paired outcome runs on Opus 5.5 at medium effort, one run per case unless noted.
+
+| Skill | Enabled | Baseline | Result |
+|---|---|---|---|
+| vault-memory | correct recall | could not find the decision | keeps clear value |
+| evidence-driven-testing (data rehearsal) | pass | failed 3 of 4, attempted unsafe steps | keeps clear value |
+| evidence-driven-testing (query probe), managed-audit | pass | pass | no measured difference |
+| new-feature (rewritten trigger), 3 runs | 3/3 pass | 0/3 fetched a fresh base | keeps clear value |
+| understand-before-changing, code-structure, system-reasoning | not invoked | pass | removed |
+| no-ai-tells | invoked, pass | pass | removed |
+
+The four removed skills restated judgment Opus 5.5 already applies; git history
+keeps them. The runner now records client-provided skills (Claude Code 2.1.322
+ships `design`, `doctor`, `plugin-authoring`) instead of rejecting every arm.
+One run per case is evidence, not a statistical benchmark.
+
 # Review — November 5, 2026
 
 I kept the data and migration guidance inside the testing skill. It uses the

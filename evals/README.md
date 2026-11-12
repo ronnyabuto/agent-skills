@@ -21,7 +21,7 @@ model calls and do not claim that Claude follows the skills.
 
 ## Trigger evaluations
 
-`*.json` contains 51 scenarios across 12 skills. The first expectation's
+`*.json` contains 35 scenarios across 8 skills. The first expectation's
 `Invokes` or `Does not invoke` prefix determines the score; behavioral-only
 cases are skipped. Subsequent expectations remain useful for transcript review.
 
@@ -115,7 +115,7 @@ project instructions. Keep it until review is finished. It contains:
   output. Worktree metadata remains valid because the workspace stays in place.
 
 `--max-turns` defaults to 16, `--timeout` to 180 seconds, and `--max-budget-usd`
-to $0.75 **per arm**: ten arms for the full suite, with a nominal total of $7.50.
+to $0.75 **per arm**: twelve arms for the full suite, with a nominal total of $9.00.
 The CLI may exceed a spend cap; reported estimated costs are not subscription
 billing. Both runners run without automatic case retries. Outcome errors are
 unscored, invalidate that pair's comparison, and cause a nonzero exit. Reported

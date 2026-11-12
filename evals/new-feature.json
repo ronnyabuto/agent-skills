@@ -7,10 +7,10 @@
     "files": [],
     "expected_behavior": [
       "Invokes the new-feature skill before writing any code",
-      "Fetches origin and checks open PRs / uncommitted work for scope conflicts",
-      "Works in an isolated worktree on a new branch, not on main",
-      "In Claude Code, retains an assigned harness worktree only after fetching and verifying its base; requests or creates a worktree if none was assigned",
-      "Records freshly fetched origin/main and verifies the new branch starts at that commit before editing"
+      "Fetches origin and checks uncommitted work before creating the branch",
+      "Creates a new task branch from freshly fetched origin/main, not main itself",
+      "Keeps an assigned harness worktree after verifying its base; does not create a worktree unless isolation is requested or concurrent writers conflict",
+      "Records the fetched origin/main commit and verifies the new branch starts there before editing"
     ]
   },
   {
