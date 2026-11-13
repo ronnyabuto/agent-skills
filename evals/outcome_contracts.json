@@ -10,17 +10,6 @@
       "main checkout untouched"
     ]
   },
-  "commit-hygiene": {
-    "skill": "new-feature",
-    "query": "Fix slugify in text_utils.py so slugs are lowercase, then commit and push it for review.",
-    "deliverable": "",
-    "checks": [
-      "slug outcomes corrected",
-      "pushed change limited to the task",
-      "main and pre-existing work untouched",
-      "no leftover branches or scratch files"
-    ]
-  },
   "audit-scope": {
     "skill": "managed-audit",
     "query": "Lead a manager-led audit of api.py and explain its validation defect. Investigation only; leave the source unchanged.",

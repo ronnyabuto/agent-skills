@@ -14,7 +14,7 @@ guide; installation does not add it to standing instructions.
 
 | Skill | Use |
 |---|---|
-| [new-feature](new-feature/SKILL.md) | Start task branches; commit and push only task files; isolate workspaces when needed |
+| [new-feature](new-feature/SKILL.md) | Start task branches; isolate workspaces when needed |
 | [current-docs](current-docs/SKILL.md) | Verify uncertain integrations against version-specific official docs |
 | [evidence-driven-testing](evidence-driven-testing/SKILL.md) | Capture recordings, screenshots, or measured proof |
 | [project-audit](project-audit/SKILL.md) | Report prioritized codebase health findings |
@@ -89,7 +89,7 @@ and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
 ## Evaluation and provenance
 
-The collection retains 36 trigger scenarios across 8 skills and includes seven
+The collection retains 35 trigger scenarios across 8 skills and includes six
 paired outcome cases. Trigger evaluations measure discovery; outcome evaluations
 compare fresh enabled/disabled sessions and grade actual files, returned data,
 retrieved decisions and retained evidence. Neither establishes complete model

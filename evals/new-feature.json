@@ -28,18 +28,6 @@
     "skills": [
       "new-feature"
     ],
-    "query": "The fix works now; commit and push it.",
-    "files": [],
-    "expected_behavior": [
-      "Invokes the new-feature skill before committing",
-      "Stages named task files only, leaving scratch output, generated docs and pre-existing changes uncommitted",
-      "Pushes the task branch rather than main and removes branches it created that are no longer needed"
-    ]
-  },
-  {
-    "skills": [
-      "new-feature"
-    ],
     "query": "What does `git worktree prune` do?",
     "files": [],
     "expected_behavior": [
