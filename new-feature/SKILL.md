@@ -18,7 +18,9 @@ Do this before editing. It takes a few commands; don't skip it because the fix i
      and the branch has no work of its own, fast-forward it; otherwise rebase
      or report the gap. Don't create another branch or worktree.
    - **On main or an unrelated branch:** create a uniquely named task branch
-     from `origin/main` (not local main). Don't pull into or reset local main.
+     with `git switch --no-track -c <branch> origin/main` (not local main;
+     without `--no-track` the branch would track and push to main). Don't pull
+     into or reset local main.
    - **Explicit base** (release branch, PR continuation): fetch that remote
      branch and use it instead.
 4. Verify `git rev-parse HEAD` equals the recorded base (or descends from it for
@@ -31,8 +33,10 @@ gitignored configuration before running tests; see
 [worktree environments](references/environment.md). Worktrees share refs,
 objects, ports, caches and external databases.
 
-## Cleanup (only when asked)
+## Cleanup
 
 Before removing a branch or worktree, verify it is merged into its base, has no
 later commits and a clean status. Prefer `git branch -d`; use `-D` after a
-squash or rebase merge only when integration is verified.
+squash or rebase merge only when integration is verified. Without being asked,
+remove only branches and worktrees you created for this task. Delete a remote
+branch only after its PR has merged.
