@@ -7,6 +7,7 @@ actual uncertainty. Do not require the entire collection for every edit.
 | Task | Relevant procedure |
 |---|---|
 | Fresh implementation | `new-feature` once; preserve existing work and verify the base |
+| Commit or push | `new-feature` commit steps; stage named task files only |
 | Established local fix | Inspect the owner and callers, fix it, run the affected check |
 | Uncertain version-specific integration | `current-docs` |
 | Requested proof, test design or measured improvement | `evidence-driven-testing`; choose the relevant reference |

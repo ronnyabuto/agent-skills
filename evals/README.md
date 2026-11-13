@@ -21,7 +21,7 @@ model calls and do not claim that Claude follows the skills.
 
 ## Trigger evaluations
 
-`*.json` contains 35 scenarios across 8 skills. The first expectation's
+`*.json` contains 36 scenarios across 8 skills. The first expectation's
 `Invokes` or `Does not invoke` prefix determines the score; behavioral-only
 cases are skipped. Subsequent expectations remain useful for transcript review.
 
@@ -70,7 +70,7 @@ The existing default model remains `sonnet`; `--model` selects the paired model,
 and the trigger runner takes the model as its positional argument. Compare both
 arms at the same explicit model and effort. Live commands consume model usage.
 
-Omit `--case` for all six cases; repeat it to select several. Each case runs
+Omit `--case` for all seven cases; repeat it to select several. Each case runs
 sequentially in two fresh sessions with identical synthetic starting state and
 prompt. The selected skill is frozen once under `candidates/`, copied to project scope
 in both workspaces and
@@ -92,6 +92,7 @@ is claimed by the offline stand-in tests.
 | Case | Observable checks |
 |---|---|
 | `assigned-worktree` | Keep the assigned branch/worktree, fetch the local origin, retain the current base, correct calendar results and leave the main checkout untouched. |
+| `commit-hygiene` | Push a correct fix on one task branch with only task files; leave main, the user's uncommitted README edit, `.env` and notes untouched; leave no extra branches or scratch files. |
 | `audit-scope` | Leave source unchanged, identify the actual validation failure with a location and reproduction, and disclose unavailable delegation. |
 | `memory-recall` | Retrieve the current decision and constraint, cite its dated source, avoid adopting superseded advice and use bounded retrieval. |
 | `query-evidence` | Preserve the implementation, retain and execute a replayable probe, show actual SQL traces reducing six queries to one, and preserve all six customer names. |
@@ -115,7 +116,7 @@ project instructions. Keep it until review is finished. It contains:
   output. Worktree metadata remains valid because the workspace stays in place.
 
 `--max-turns` defaults to 16, `--timeout` to 180 seconds, and `--max-budget-usd`
-to $0.75 **per arm**: twelve arms for the full suite, with a nominal total of $9.00.
+to $0.75 **per arm**: fourteen arms for the full suite, with a nominal total of $10.50.
 The CLI may exceed a spend cap; reported estimated costs are not subscription
 billing. Both runners run without automatic case retries. Outcome errors are
 unscored, invalidate that pair's comparison, and cause a nonzero exit. Reported

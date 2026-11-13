@@ -34,6 +34,13 @@ if case == "assigned-worktree":
     subprocess.run(["git", "fetch", "origin"], check=True, capture_output=True)
     p = pathlib.Path("calendar_app.py")
     p.write_text(p.read_text().replace(" + 1", ""))
+elif case == "commit-hygiene":
+    p = pathlib.Path("text_utils.py")
+    p.write_text(p.read_text().replace("text.split()", "text.lower().split()"))
+    for command in (["fetch", "origin"], ["switch", "--no-track", "-c", "fix/slug-case", "origin/main"],
+                    ["add", "--", "text_utils.py"], ["commit", "-qm", "Lowercase slugs"],
+                    ["push", "-q", "-u", "origin", "fix/slug-case"]):
+        subprocess.run(["git", *command], check=True, capture_output=True)
 elif case == "audit-scope":
     pathlib.Path(".artifacts/audit.md").write_text("api.py:5 accepts an empty email. parse_request({'email': ''}) returns ok True. Specialist delegation unavailable; inspected directly.")
 elif case == "memory-recall":
@@ -265,6 +272,24 @@ class OutcomeRunnerTest(unittest.TestCase):
         checks = grade("query-evidence", context, [])
         self.assertFalse(next(c["passed"] for c in checks if c["name"].startswith("actual SQL")))
         self.assertFalse(next(c["passed"] for c in checks if c["name"].startswith("customer")))
+
+
+    def test_grader_rejects_broad_commit_to_main_and_leftover_branches(self):
+        context = prepare("commit-hygiene", self.root)
+        cwd = context["cwd"]
+        source = cwd / "text_utils.py"
+        source.write_text(source.read_text().replace("text.split()", "text.lower().split()"))
+        (cwd / "SUMMARY.md").write_text("What I changed\n")
+        for command in (["branch", "attempt-1"], ["add", "-A"], ["commit", "-qm", "Fix"],
+                        ["push", "-q", "origin", "HEAD:main"]):
+            subprocess.run(["git", *command], cwd=cwd, check=True, capture_output=True)
+        checks = {c["name"]: c["passed"] for c in grade("commit-hygiene", context, [])}
+        self.assertEqual(checks, {
+            "slug outcomes corrected": True,
+            "pushed change limited to the task": False,
+            "main and pre-existing work untouched": False,
+            "no leftover branches or scratch files": False,
+        })
 
 
 if __name__ == "__main__":
