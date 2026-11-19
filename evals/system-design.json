@@ -7,10 +7,10 @@
     "files": [],
     "expected_behavior": [
       "Invokes the system-design skill",
-      "Writes assumptions with units and derives a peak rate before choosing components",
+      "Derives a peak rate with units before choosing components",
       "Reuses the existing stack (nodemailer, current app) and adds no queue, cache or separate service the estimate doesn't justify",
       "Names the measurable trigger that would justify the next component",
-      "Covers timeouts, retries with backoff and idempotent sending"
+      "Gives external calls timeouts, retries with backoff and idempotent sending, and a rollback path"
     ]
   },
   {
@@ -21,7 +21,7 @@
     "files": [],
     "expected_behavior": [
       "Invokes the system-design skill",
-      "Estimates request rate, storage and bandwidth from stated or explicit assumptions",
+      "Derives a peak request rate with units from stated or explicit assumptions",
       "Names what breaks first at about 10x the estimate"
     ]
   },
