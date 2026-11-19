@@ -9,7 +9,28 @@ import sys
 import data_workflow_case
 
 
-CASES = json.loads(Path(__file__).with_name("outcome_contracts.json").read_text())
+# The first file is shared byte-for-byte with the Codex collection; the second holds
+# cases for skills only this collection has.
+CONTRACT_FILES = ("outcome_contracts.json", "outcome_contracts.claude.json")
+
+
+def load_contracts(directory=Path(__file__).parent):
+    cases = {}
+    for name in CONTRACT_FILES:
+        definitions = json.loads((directory / name).read_text())
+        duplicate = set(cases) & set(definitions)
+        if duplicate:
+            raise ValueError(f"{name} redefines {sorted(duplicate)}")
+        cases.update(definitions)
+    return cases
+
+
+CASES = load_contracts()
+
+
+def contracts_bytes():
+    """Canonical bytes of every case definition, saved with a run and hashed for resume."""
+    return (json.dumps(CASES, indent=2, sort_keys=True) + "\n").encode()
 
 
 def user_prompt(case_id):
@@ -87,7 +108,73 @@ def after(db):
         write(cwd, "arithmetic.py", "def double(value):\n    return value + 1\n")
     elif case_id == "data-rehearsal":
         context["data_hashes"] = data_workflow_case.prepare(cwd)
+    elif case_id == "design-sizing":
+        write(cwd, "README.md", "# Orders\n\nInternal order tracker for a 40-person wholesale team. One VM runs app.py "
+              "against the existing Postgres database. About 300 customers place about 500 orders a day, "
+              "mostly on weekdays between 08:00 and 18:00. Each order changes status about four times. "
+              "IT provides an SMTP relay at smtp.internal that accepts up to 30 messages per second.\n")
+        write(cwd, "app.py", 'import psycopg\n\n\ndef set_status(db: psycopg.Connection, order_id: int, status: str) -> None:\n'
+              '    with db.transaction():\n'
+              '        db.execute("UPDATE orders SET status = %s, updated_at = now() WHERE id = %s", (status, order_id))\n')
+        context["source_hashes"] = {name: digest(cwd / name) for name in ("README.md", "app.py")}
+    elif case_id == "capacity-audit":
+        write(cwd, "README.md", "# Checkout\n\nCheckout calls `rates.price()` once for every order. Peak traffic is "
+              "30 orders per second during sales. The rates provider allows 10 requests per second per API key "
+              "and answers HTTP 429 above that.\n")
+        write(cwd, "rates.py", '''import json
+import urllib.request
+
+RATES_URL = "https://rates.example.invalid/v1/latest"
+
+
+def fetch_rates():
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(RATES_URL) as response:
+                return json.load(response)
+        except OSError:
+            continue
+    raise RuntimeError("rates unavailable")
+
+
+def price(order):
+    return round(fetch_rates()[order["currency"]] * order["amount"], 2)
+''')
+        context["source_hashes"] = {name: digest(cwd / name) for name in ("README.md", "rates.py")}
     return context
+
+
+# None of these is needed for about 2,000 status emails a day, which peak well under 1/s.
+HEAVY_INFRASTRUCTURE = re.compile(
+    r"kafka|rabbit|\bsqs\b|\bsns\b|pub/?sub|redis|celery|sidekiq|kubernetes|\bk8s\b|shard"
+    r"|micro-?service|cassandra|elasticsearch|kinesis|load balancer|replica", re.I)
+# A sentence that mentions heavy infrastructure only to rule it out or defer it is not a recommendation.
+DEFERRED = re.compile(r"\b(?:no|not|without|avoid|unnecessary|overkill|later|until|if|when|instead|only)\b"
+                      r"|n't\b|don't|do not", re.I)
+RATE = re.compile(
+    r"(\d[\d,]*(?:\.\d+)?)\s*(?:emails?|messages?|msgs?|orders?|requests?|req|calls?|sends?|events?)?\s*"
+    r"(?:/|per)\s*(s|sec|second|min|minute|h|hr|hour)\b", re.I)
+SECONDS = {"s": 1, "sec": 1, "second": 1, "min": 60, "minute": 60, "h": 3600, "hr": 3600, "hour": 3600}
+
+
+def rates_per_second(text):
+    return [(match.group(0), float(match.group(1).replace(",", "")) / SECONDS[match.group(2).lower()])
+            for match in RATE.finditer(text)]
+
+
+def sentences(text):
+    return [part for part in re.split(r"(?<=[.!?])\s+|\n+", text) if part.strip()]
+
+
+def near(text, anchor, target):
+    """True when target occurs in a sentence matching anchor or in the sentence after it."""
+    parts = sentences(text)
+    return any(re.search(target, " ".join(parts[i:i + 2]), re.I)
+               for i, part in enumerate(parts) if re.search(anchor, part, re.I))
+
+
+def changed_sources(cwd, hashes):
+    return sorted(name for name, value in hashes.items() if digest(cwd / name) != value)
 
 
 def tool_calls(events):
@@ -188,4 +275,42 @@ def grade(case_id, context, events):
         check("unrelated skill not used", not used, used)
     elif case_id == "data-rehearsal":
         checks.extend(data_workflow_case.grade(cwd, context["data_hashes"]))
+    elif case_id == "design-sizing":
+        changed = changed_sources(cwd, context["source_hashes"])
+        check("source unchanged", not changed, {"changed": changed})
+        design = cwd / ".artifacts/design.md"
+        text = design.read_text() if design.is_file() else ""
+        listed = cwd / ".artifacts/components.json"
+        components = json.loads(listed.read_text()) if listed.is_file() else None
+        valid = isinstance(components, list) and all(
+            isinstance(c, dict) and isinstance(c.get("name"), str) and isinstance(c.get("purpose"), str)
+            for c in components)
+        heavy = [c for c in components if HEAVY_INFRASTRUCTURE.search(c["name"] + " " + c["purpose"])] if valid else None
+        recommended = [part.strip() for part in sentences(text)
+                       if HEAVY_INFRASTRUCTURE.search(part) and not DEFERRED.search(part)]
+        check("no infrastructure beyond the stated load", valid and not heavy and not recommended,
+              {"components": components, "listed": heavy, "recommended_in_design": recommended})
+        # The fixture implies about 0.06 emails/s at peak; the relay's 30/s is a given limit, not an estimate.
+        estimates = [(found, value) for found, value in rates_per_second(text) if 0.001 <= value <= 5]
+        check("peak rate estimated with units", estimates,
+              {"plausible": estimates, "all_rates": rates_per_second(text)})
+        check("retries cannot send duplicates",
+              near(text, r"retr(?:y|ies)|backoff",
+                   r"idempot|de-?dup|duplicate|unique|exactly[- ]once|at[- ]most[- ]once|sent_at"), text)
+    elif case_id == "capacity-audit":
+        changed = changed_sources(cwd, context["source_hashes"])
+        check("source unchanged", not changed, {"changed": changed})
+        report = cwd / ".artifacts/audit.md"
+        text = report.read_text() if report.is_file() else ""
+        check("missing timeout located",
+              near(text, r"time-?out", r"rates\.py[:#L ]*(?:line\s*)?10\b|\blines?\s*10\b|urlopen"), text)
+        check("retry amplification identified",
+              near(text, r"retr(?:y|ies)", r"backoff|jitter")
+              and re.search(r"amplif|multipl|\b5\s*(?:x|×|attempts|tries|times)|five (?:attempts|tries|times)|\b150\b",
+                            text, re.I), text)
+        values = [value for _, value in rates_per_second(text)]
+        check("load quantified against the upstream limit",
+              30 in values and 10 in values
+              and re.search(r"\b3\s*[x×]|three times|triple|\b150\b|\b20\s*(?:req|requests|calls)?\s*(?:/|per)\s*s",
+                            text, re.I), {"rates": rates_per_second(text), "text": text})
     return checks

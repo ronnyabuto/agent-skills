@@ -14,9 +14,10 @@ import math
 import os
 from pathlib import Path
 import shutil
+import sys
 import tempfile
 
-from claude_session import EFFORT_LEVELS, positive_number, run_session
+from claude_session import EFFORT_LEVELS, LIMIT_ERROR, positive_number, run_session
 
 
 EVALS = Path(__file__).resolve().parent
@@ -75,6 +76,7 @@ def main():
     args.report.parent.mkdir(parents=True, exist_ok=True)
     counts = dict(passed=0, failed=0, errors=0, skipped=0)
     observed_cost, cost_reported = 0.0, 0
+    limited = None
     with args.report.open("x", encoding="utf-8") as report:
         for skill, index, case in cases:
             expected = case["expected_behavior"][0]
@@ -104,12 +106,17 @@ def main():
             report.flush()
             detail = record.get("error") or f"got={record.get('invoked') or '-'}"
             print(f"{record['status'].upper():7} {skill:28} {detail} | {case['query'][:55]}", flush=True)
+            if record.get("error") == LIMIT_ERROR:
+                # Later cases would fail the same way; stop instead of paying for them.
+                limited = record
+                break
 
         completed = counts["passed"] + counts["failed"]
         executed = completed + counts["errors"]
         missing = executed - cost_reported
         summary = dict(
             type="summary", **counts, executed=executed, model=args.model,
+            stopped_at_limit=bool(limited),
             requested_effort=args.effort,
             observed_cost_usd=round(observed_cost, 8) if cost_reported else None,
             cost_reported_cases=cost_reported, cost_missing_cases=missing,
@@ -121,6 +128,10 @@ def main():
           f"({counts['errors']} errored, {counts['skipped']} skipped; model={args.model})")
     cost_label = f"${observed_cost:.6f}" if cost_reported else "unknown"
     print(f"Reported estimated cost: {cost_label}; {missing} cases missing cost. Report: {args.report}")
+    if limited:
+        print(f"Stopped at a usage or rate limit ({limited['limit_evidence']}); rerun after it resets.",
+              file=sys.stderr)
+        return 75
     return int(bool(counts["failed"] or counts["errors"] or not completed))
 
 

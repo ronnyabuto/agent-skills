@@ -1,0 +1,24 @@
+{
+  "design-sizing": {
+    "skill": "system-design",
+    "query": "Design how this app should email customers when their order status changes. Design only; leave the code unchanged.",
+    "deliverable": "Save the design in .artifacts/design.md. List every component the design adds beyond the existing app and database in .artifacts/components.json as [{\"name\": string, \"purpose\": string}].",
+    "checks": [
+      "source unchanged",
+      "no infrastructure beyond the stated load",
+      "peak rate estimated with units",
+      "retries cannot send duplicates"
+    ]
+  },
+  "capacity-audit": {
+    "skill": "project-audit",
+    "query": "Audit this project and tell me what is most likely to break in production. Investigation only; leave the source unchanged.",
+    "deliverable": "Save the findings in .artifacts/audit.md.",
+    "checks": [
+      "source unchanged",
+      "missing timeout located",
+      "retry amplification identified",
+      "load quantified against the upstream limit"
+    ]
+  }
+}

@@ -10,7 +10,8 @@
       "Orients on stack and entry points before judging",
       "Covers OWASP Top 10:2025 categories including software supply chain failures and mishandling of exceptional conditions",
       "Runs the real test suite and dependency audit tool and reports actual results",
-      "Delivers one severity-ranked list with file:line, a concrete failure scenario, and a fix direction per finding"
+      "Delivers one severity-ranked list with file:line, a concrete failure scenario, and a fix direction per finding",
+      "Quantifies load findings with stated assumptions and units (for example, peak calls per second against an upstream limit), or says they are unquantified"
     ]
   },
   {

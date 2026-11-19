@@ -52,6 +52,14 @@ deliverable is ranked by severity, not grouped by section.
    one.
 7. **Operational readiness** — logging, error handling at boundaries,
    config/secrets management, CI status if present.
+8. **Capacity and failure** — calls to networks or databases without
+   timeouts, retries without backoff or idempotency, queues or batches with
+   no bound or monitoring, single points of failure, and hot keys. When load
+   figures are available (docs, config, metrics, upstream API limits),
+   quantify the risk with stated assumptions and units, for example peak
+   calls per second against an upstream quota, including retry
+   amplification. Name what fails first at about 10× current load. Without
+   figures, state that the scaling risk is unquantified instead of guessing.
 
 ## Deliverable
 
@@ -59,7 +67,8 @@ A prioritized findings list — Critical / High / Medium / Low — each with:
 
 - `file:line`
 - A concrete failure scenario (inputs/state → wrong output or crash), not "this
-  could be an issue"
+  could be an issue". For load or performance findings, the scenario includes
+  the estimate (rate, size or latency with units).
 - A one-line fix direction
 
 Don't pad the list with stylistic nitpicks to hit a count — an empty severity

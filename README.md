@@ -1,10 +1,11 @@
 # agent-skills
 
-Eight on-demand [Agent Skills](https://agentskills.io) for Claude Code: task
-setup, version-specific docs checks, audits, evidence capture, and local vault
-memory. This repository contains `SKILL.md` procedures, supporting references,
-helper scripts, an installer, and eval fixtures. It is the Claude Code collection;
-the separate Codex package and installation are maintained separately.
+Nine on-demand [Agent Skills](https://agentskills.io) for Claude Code: task
+setup, version-specific docs checks, load-sized system design, audits, evidence
+capture, and local vault memory. This repository contains `SKILL.md`
+procedures, supporting references, helper scripts, an installer, and eval
+fixtures. It is the Claude Code collection; the separate Codex package and
+installation are maintained separately.
 
 For model selection, task scope and measuring context overhead, see
 [efficient use with Claude Opus 5.5](docs/efficient-use.md). This is an on-demand
@@ -16,6 +17,7 @@ guide; installation does not add it to standing instructions.
 |---|---|
 | [new-feature](new-feature/SKILL.md) | Start task branches; isolate workspaces when needed |
 | [current-docs](current-docs/SKILL.md) | Verify uncertain integrations against version-specific official docs |
+| [system-design](system-design/SKILL.md) | Design a service or integration sized to its estimated load |
 | [evidence-driven-testing](evidence-driven-testing/SKILL.md) | Capture recordings, screenshots, or measured proof |
 | [project-audit](project-audit/SKILL.md) | Report prioritized codebase health findings |
 | [ux-speed-audit](ux-speed-audit/SKILL.md) | Measure loading and interaction responsiveness |
@@ -89,7 +91,7 @@ and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
 ## Evaluation and provenance
 
-The collection retains 35 trigger scenarios across 8 skills and includes six
+The collection retains 39 trigger scenarios across 9 skills and includes eight
 paired outcome cases. Trigger evaluations measure discovery; outcome evaluations
 compare fresh enabled/disabled sessions and grade actual files, returned data,
 retrieved decisions and retained evidence. Neither establishes complete model

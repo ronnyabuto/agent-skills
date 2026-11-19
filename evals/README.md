@@ -16,12 +16,14 @@ python3 evals/run_outcome_evals.py --list
 ```
 
 The harness tests replace Claude with a local executable and exercise real
-fixtures, grading, reports, failed sessions and unknown costs. They make no
+fixtures, grading, reports, failed sessions and unknown costs. Each grader
+check has a near-miss test: a reference answer passes, and a plausible
+answer missing only that check's behavior fails only that check. They make no
 model calls and do not claim that Claude follows the skills.
 
 ## Trigger evaluations
 
-`*.json` contains 35 scenarios across 8 skills. The first expectation's
+`*.json` contains 39 scenarios across 9 skills. The first expectation's
 `Invokes` or `Does not invoke` prefix determines the score; behavioral-only
 cases are skipped. Subsequent expectations remain useful for transcript review.
 
@@ -70,7 +72,7 @@ The existing default model remains `sonnet`; `--model` selects the paired model,
 and the trigger runner takes the model as its positional argument. Compare both
 arms at the same explicit model and effort. Live commands consume model usage.
 
-Omit `--case` for all six cases; repeat it to select several. Each case runs
+Omit `--case` for all eight cases; repeat it to select several. Each case runs
 sequentially in two fresh sessions with identical synthetic starting state and
 prompt. The selected skill is frozen once under `candidates/`, copied to project scope
 in both workspaces and
@@ -97,6 +99,8 @@ is claimed by the offline stand-in tests.
 | `query-evidence` | Preserve the implementation, retain and execute a replayable probe, show actual SQL traces reducing six queries to one, and preserve all six customer names. |
 | `data-rehearsal` | Use the approved local job; expose a normalization collision hidden by sanitization; preserve the candidate and workflow; report failed readiness without attempting export or deployment. |
 | `routine-control` | Correct simple arithmetic without invoking the unrelated current-docs skill. |
+| `design-sizing` | Leave source unchanged; neither list nor recommend infrastructure (broker, cache, cluster, shard, separate service) that about 2,000 emails a day doesn't need; state a plausible peak rate (0.001–5/s after unit conversion, so the relay's given 30/s doesn't count); tie retries to idempotent sending in the same or next sentence. |
+| `capacity-audit` | Leave source unchanged; tie the missing timeout to the `urlopen` call (line 10); identify retries without backoff and their amplification; state 30/s and 10/s as rates and the resulting excess. |
 
 The output defaults to a new private `/tmp/skill-outcomes-<timestamp>/` directory.
 An explicit `--output` must be new and outside Git worktrees to avoid inheriting
@@ -115,13 +119,38 @@ project instructions. Keep it until review is finished. It contains:
   output. Worktree metadata remains valid because the workspace stays in place.
 
 `--max-turns` defaults to 16, `--timeout` to 180 seconds, and `--max-budget-usd`
-to $0.75 **per arm**: twelve arms for the full suite, with a nominal total of $9.00.
+to $0.75 **per arm**: sixteen arms for the full suite, with a nominal total of $12.00.
 The CLI may exceed a spend cap; reported estimated costs are not subscription
-billing. Both runners run without automatic case retries. Outcome errors are
+billing. Both runners run without automatic case retries; Claude Code itself
+retries transient 429/529 responses with backoff. Outcome errors are
 unscored, invalidate that pair's comparison, and cause a nonzero exit. Reported
 costs from failed sessions are included; missing costs remain unknown. The
 outcome exit status also fails for an enabled-arm rubric failure or no complete
 comparison. A passing disabled arm is expected and does not fail the run.
+
+## Usage and rate limits
+
+A session that fails on a plan usage limit, spend limit or exhausted rate-limit
+retries is recorded as `limit_reached` with its `limit_evidence` (an
+`api_error_status` of 429, the CLI's limit message, or a final `api_retry` event
+with `error: "rate_limit"`). It is unscored, like other errors. Both runners
+then stop instead of paying for sessions that would fail the same way, and exit
+with status 75.
+
+Continue a paired run after the limit resets:
+
+```bash
+python3 evals/run_outcome_evals.py --resume /tmp/skill-outcomes-<timestamp>
+```
+
+Resume runs only arms with no recorded result or a `limit_reached` result. It
+reuses the recorded model, effort, limits and frozen candidates, and refuses to
+continue when the Claude Code version, harness, case definitions or a frozen
+candidate changed, or when other run flags are passed. A limited arm's directory
+is kept as `<arm>.limited-<n>`. `report.jsonl` gains a `resume` record and a new
+summary; `summary.json` describes the latest result for every arm, with
+`unfinished_arms` counting any still missing. The trigger runner stops at a
+limit but has no resume; rerun the remaining skills afterwards.
 
 ## Interpretation and limits
 
@@ -162,12 +191,26 @@ when its evidence is no longer needed.
 ## Natural requests and output contracts
 
 `outcome_contracts.json` separates natural user requests from serialization-only
-deliverables and hidden check names. Only the request and deliverable reach the
+deliverables and hidden check names.
+It is shared with the Codex collection; `outcome_contracts.claude.json` holds
+cases for skills only this collection has (`system-design`, and
+`capacity-audit` for this collection's `project-audit`). The runner merges both,
+rejects duplicate case names, and saves and hashes the merged definitions.
+The sibling check compares only the shared file. Only the request and deliverable reach the
 agent. No prompt tells it to fetch origin, disclose missing delegation, reject
 superseded notes, or use bounded reads. File names and the query probe JSON
 interface remain explicit so deterministic graders can replay the evidence; this
 is still a constrained artifact-delivery evaluation, not unconstrained chat.
 The request does not give expected counts or customer names.
+
+`design-sizing` states the traffic in the fixture README, not the request, and the
+`components.json` format names only what to list, not how to size it. Heavy
+infrastructure fails the case whether it is listed or recommended in the prose;
+sentences that rule it out or defer it behind a trigger are allowed. These are
+deterministic text checks, not judgments of design quality: review the design
+before concluding that a sizing decision was justified.
+`capacity-audit` puts the load figures in the README, not the request, so
+quantifying them is the measured behavior.
 
 `routine-control` asks for a standard-library-free arithmetic correction with
 `current-docs` available. It checks correct results and absence of unrelated
