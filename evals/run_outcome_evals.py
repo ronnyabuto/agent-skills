@@ -13,14 +13,18 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 
-from claude_session import EFFORT_LEVELS, positive_number, run_session
-from outcome_cases import CASES, grade, prepare, tool_calls, user_prompt
+from claude_session import EFFORT_LEVELS, LIMIT_ERROR, positive_number, run_session
+from outcome_cases import CASES, contracts_bytes, grade, prepare, tool_calls, user_prompt
 
 
 SKILLS_ROOT = Path(__file__).resolve().parent.parent
 MIN_VERSION = (2, 1, 300)
+# Files whose changes would alter prompts, grading or classification of a resumed run.
+HARNESS_FILES = ("run_outcome_evals.py", "outcome_cases.py", "data_workflow_case.py", "claude_session.py")
+EX_TEMPFAIL = 75
 
 
 def snapshot_hash(root):
@@ -158,6 +162,45 @@ def summarize(records):
                                  for arm in counts})
 
 
+def planned_arms(cases):
+    # Alternate order to reduce a consistent first-run/cache bias.
+    return [(case_id, arm) for index, case_id in enumerate(cases)
+            for arm in (("enabled", "disabled") if index % 2 == 0 else ("disabled", "enabled"))]
+
+
+def harness_hash():
+    digest = hashlib.sha256()
+    for name in HARNESS_FILES:
+        digest.update(name.encode() + b"\0" + Path(__file__).with_name(name).read_bytes() + b"\0")
+    return digest.hexdigest()
+
+
+def load_resume(parser, args):
+    """Restore a run's frozen settings and refuse anything that would change the comparison."""
+    output = args.resume.resolve()
+    try:
+        metadata = json.loads((output / "run.json").read_text())
+        lines = (output / "report.jsonl").read_text().splitlines()
+    except (OSError, ValueError) as exc:
+        parser.error(f"cannot resume {output}: {exc}")
+    if metadata.get("harness_sha256") != harness_hash():
+        parser.error("cannot resume: the eval harness changed since this run started")
+    if metadata.get("contracts_sha256") != hashlib.sha256(contracts_bytes()).hexdigest():
+        parser.error("cannot resume: outcome case definitions changed since this run started")
+    for skill, expected in metadata["candidate_sha256"].items():
+        if snapshot_hash(output / "candidates" / skill) != expected:
+            parser.error(f"cannot resume: frozen candidate {skill} changed")
+    args.model, args.effort = metadata["model"], metadata["requested_effort"]
+    args.max_turns, args.timeout = metadata["max_turns"], metadata["timeout"]
+    args.max_budget_usd, args.skills_root = metadata["max_budget_usd_per_arm"], output / "candidates"
+    latest = {}
+    for line in lines:
+        record = json.loads(line)
+        if record.get("type") == "case":
+            latest[(record["case"], record["arm"])] = record
+    return output, metadata, latest
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", action="append", choices=CASES, dest="cases")
@@ -169,6 +212,8 @@ def main():
     parser.add_argument("--timeout", type=positive_number, default=180)
     parser.add_argument("--max-budget-usd", type=positive_number, default=0.75)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--resume", type=Path, metavar="RUN_DIR",
+                        help="Run only the arms an earlier run did not reach or that stopped at a usage or rate limit")
     parser.add_argument("--list", action="store_true")
     args = parser.parse_args()
     if args.max_turns < 1:
@@ -176,11 +221,19 @@ def main():
     if args.list:
         print(json.dumps(CASES, indent=2))
         return 0
-    args.skills_root = args.skills_root.resolve()
-    selected = list(dict.fromkeys(args.cases or CASES))
-    for case_id in selected:
-        if not (args.skills_root / CASES[case_id]["skill"] / "SKILL.md").is_file():
-            parser.error(f"missing skill for {case_id} in {args.skills_root}")
+    if args.resume:
+        flags = dict(cases="--case", model="--model", effort="--effort", skills_root="--skills-root",
+                     max_turns="--max-turns", timeout="--timeout", max_budget_usd="--max-budget-usd",
+                     output="--output")
+        fixed = [flag for name, flag in flags.items() if getattr(args, name) != parser.get_default(name)]
+        if fixed:
+            parser.error("--resume reuses the run's recorded settings; remove " + ", ".join(fixed))
+    else:
+        args.skills_root = args.skills_root.resolve()
+        selected = list(dict.fromkeys(args.cases or CASES))
+        for case_id in selected:
+            if not (args.skills_root / CASES[case_id]["skill"] / "SKILL.md").is_file():
+                parser.error(f"missing skill for {case_id} in {args.skills_root}")
     try:
         version = subprocess.run(["claude", "--version"], capture_output=True, text=True, check=True, timeout=15).stdout.strip()
     except (OSError, subprocess.SubprocessError) as exc:
@@ -188,53 +241,85 @@ def main():
     match = re.search(r"(\d+)\.(\d+)\.(\d+)", version)
     if not match or tuple(map(int, match.groups())) < MIN_VERSION:
         parser.error("outcome evals require Claude Code >= 2.1.300 (skillOverrides and session controls)")
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    output = (args.output or Path(tempfile.gettempdir()) / f"skill-outcomes-{stamp}").resolve()
-    output.parent.mkdir(parents=True, exist_ok=True)
-    probe = subprocess.run(["git", "-C", str(output.parent), "rev-parse", "--show-toplevel"],
-                           capture_output=True, text=True, timeout=15)
-    if probe.returncode == 0:
-        parser.error("--output must be outside Git worktrees so project instructions cannot contaminate the comparison")
-    if output.exists():
-        parser.error(f"output already exists: {output}")
-    output.mkdir(mode=0o700)
-    contract_bytes = Path(__file__).with_name("outcome_contracts.json").read_bytes()
-    (output / "outcome-contracts.json").write_bytes(contract_bytes)
-    source_root = args.skills_root
-    candidates = output / "candidates"
-    for skill in dict.fromkeys(CASES[c]["skill"] for c in selected):
-        shutil.copytree(source_root / skill, candidates / skill,
-                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-    args.skills_root = candidates
-    revision = subprocess.run(["git", "-C", str(source_root), "rev-parse", "HEAD"],
+    if args.resume:
+        output, metadata, latest = load_resume(parser, args)
+        if metadata["claude_version"] != version:
+            parser.error(f"cannot resume: run used {metadata['claude_version']}, installed is {version}")
+        selected = metadata["cases"]
+        pending = [(c, a) for c, a in planned_arms(selected)
+                   if (c, a) not in latest or latest[(c, a)].get("error") == LIMIT_ERROR]
+        if not pending:
+            parser.error(f"nothing to resume in {output}: every arm has a recorded result")
+        for case_id, arm in pending:
+            previous = output / case_id / arm
+            if previous.exists():
+                # Keep the limited attempt's evidence beside the rerun.
+                attempt = 1
+                while previous.with_name(f"{arm}.limited-{attempt}").exists():
+                    attempt += 1
+                previous.rename(previous.with_name(f"{arm}.limited-{attempt}"))
+        report = (output / "report.jsonl").open("a", encoding="utf-8")
+        report.write(json.dumps(dict(type="resume", claude_version=version,
+                                     resumed_at=datetime.now(timezone.utc).isoformat(),
+                                     pending=[f"{c}:{a}" for c, a in pending])) + "\n")
+    else:
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+        output = (args.output or Path(tempfile.gettempdir()) / f"skill-outcomes-{stamp}").resolve()
+        output.parent.mkdir(parents=True, exist_ok=True)
+        probe = subprocess.run(["git", "-C", str(output.parent), "rev-parse", "--show-toplevel"],
+                               capture_output=True, text=True, timeout=15)
+        if probe.returncode == 0:
+            parser.error("--output must be outside Git worktrees so project instructions cannot contaminate the comparison")
+        if output.exists():
+            parser.error(f"output already exists: {output}")
+        output.mkdir(mode=0o700)
+        contract_bytes = contracts_bytes()
+        (output / "outcome-contracts.json").write_bytes(contract_bytes)
+        source_root = args.skills_root
+        candidates = output / "candidates"
+        for skill in dict.fromkeys(CASES[c]["skill"] for c in selected):
+            shutil.copytree(source_root / skill, candidates / skill,
+                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        args.skills_root = candidates
+        revision = subprocess.run(["git", "-C", str(source_root), "rev-parse", "HEAD"],
+                                  capture_output=True, text=True, timeout=15)
+        tree = subprocess.run(["git", "-C", str(source_root), "status", "--short"],
                               capture_output=True, text=True, timeout=15)
-    tree = subprocess.run(["git", "-C", str(source_root), "status", "--short"],
-                          capture_output=True, text=True, timeout=15)
-    records = []
-    with (output / "report.jsonl").open("x", encoding="utf-8") as report:
         metadata = dict(contracts_sha256=hashlib.sha256(contract_bytes).hexdigest(), type="run", claude_version=version, model=args.model,
                         requested_effort=args.effort, skills_root=str(source_root), cases=selected,
                         revision=revision.stdout.strip() if revision.returncode == 0 else None,
                         working_tree=tree.stdout if tree.returncode == 0 else None,
                         max_turns=args.max_turns, timeout=args.timeout,
-                        max_budget_usd_per_arm=args.max_budget_usd,
+                        max_budget_usd_per_arm=args.max_budget_usd, harness_sha256=harness_hash(),
                         candidate_sha256={CASES[c]["skill"]: snapshot_hash(args.skills_root / CASES[c]["skill"]) for c in selected})
         (output / "run.json").write_text(json.dumps(metadata, indent=2) + "\n")
+        report = (output / "report.jsonl").open("x", encoding="utf-8")
         report.write(json.dumps(metadata) + "\n")
-        for index, case_id in enumerate(selected):
-            # Alternate order to reduce a consistent first-run/cache bias.
-            arms = ("enabled", "disabled") if index % 2 == 0 else ("disabled", "enabled")
-            for arm in arms:
-                record = run_arm(case_id, arm, args, output / case_id / arm)
-                records.append(record)
-                report.write(json.dumps(record) + "\n")
-                report.flush()
-                print(f"{record['status'].upper():5} {case_id:20} {arm:8} {record['error'] or ''}", flush=True)
+        latest, pending = {}, planned_arms(selected)
+    limited = None
+    with report:
+        for case_id, arm in pending:
+            record = run_arm(case_id, arm, args, output / case_id / arm)
+            latest[(case_id, arm)] = record
+            report.write(json.dumps(record) + "\n")
+            report.flush()
+            print(f"{record['status'].upper():5} {case_id:20} {arm:8} {record['error'] or ''}", flush=True)
+            if record["error"] == LIMIT_ERROR:
+                # Every later arm would hit the same limit; stop instead of paying for failures.
+                limited = record
+                break
+        records = [latest[key] for key in planned_arms(selected) if key in latest]
         summary = summarize(records)
+        summary["unfinished_arms"] = sum(key not in latest or latest[key]["error"] == LIMIT_ERROR
+                                         for key in planned_arms(selected))
         report.write(json.dumps(summary) + "\n")
     (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))
     print(f"Artifacts: {output}")
+    if limited:
+        print(f"Stopped at a usage or rate limit ({limited['limit_evidence']}). After it resets, run:\n"
+              f"  python3 {Path(__file__).resolve()} --resume {output}", file=sys.stderr)
+        return EX_TEMPFAIL
     failed = any(r["status"] == "error" or (r["arm"] == "enabled" and r["status"] == "fail")
                  for r in records)
     return int(failed or not summary["comparable_pairs"])

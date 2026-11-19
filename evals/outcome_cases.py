@@ -9,7 +9,28 @@ import sys
 import data_workflow_case
 
 
-CASES = json.loads(Path(__file__).with_name("outcome_contracts.json").read_text())
+# The first file is shared byte-for-byte with the Codex collection; the second holds
+# cases for skills only this collection has.
+CONTRACT_FILES = ("outcome_contracts.json", "outcome_contracts.claude.json")
+
+
+def load_contracts(directory=Path(__file__).parent):
+    cases = {}
+    for name in CONTRACT_FILES:
+        definitions = json.loads((directory / name).read_text())
+        duplicate = set(cases) & set(definitions)
+        if duplicate:
+            raise ValueError(f"{name} redefines {sorted(duplicate)}")
+        cases.update(definitions)
+    return cases
+
+
+CASES = load_contracts()
+
+
+def contracts_bytes():
+    """Canonical bytes of every case definition, saved with a run and hashed for resume."""
+    return (json.dumps(CASES, indent=2, sort_keys=True) + "\n").encode()
 
 
 def user_prompt(case_id):
@@ -87,7 +108,74 @@ def after(db):
         write(cwd, "arithmetic.py", "def double(value):\n    return value + 1\n")
     elif case_id == "data-rehearsal":
         context["data_hashes"] = data_workflow_case.prepare(cwd)
+    elif case_id == "design-sizing":
+        write(cwd, "README.md", "# Orders\n\nInternal order tracker for a 40-person wholesale team. One VM runs app.py "
+              "against the existing Postgres database. About 300 customers place about 500 orders a day, "
+              "mostly on weekdays between 08:00 and 18:00. Each order changes status about four times. "
+              "IT provides an SMTP relay at smtp.internal that accepts up to 30 messages per second.\n")
+        write(cwd, "app.py", 'import psycopg\n\n\ndef set_status(db: psycopg.Connection, order_id: int, status: str) -> None:\n'
+              '    with db.transaction():\n'
+              '        db.execute("UPDATE orders SET status = %s, updated_at = now() WHERE id = %s", (status, order_id))\n')
+        context["source_hashes"] = {name: digest(cwd / name) for name in ("README.md", "app.py")}
     return context
+
+
+# None of these is needed for about 2,000 status emails a day, which peak well under 1/s.
+HEAVY_INFRASTRUCTURE = re.compile(
+    r"kafka|rabbit|\bsqs\b|\bsns\b|pub/?sub|redis|celery|sidekiq|kubernetes|\bk8s\b|shard"
+    r"|micro-?service|cassandra|elasticsearch|kinesis|load balancer|replica", re.I)
+# A sentence that mentions heavy infrastructure only to rule it out or defer it is not a recommendation.
+DEFERRED = re.compile(r"\b(?:no|not|without|avoid|unnecessary|overkill|later|until|if|when|instead|only)\b"
+                      r"|n't\b|don't|do not", re.I)
+RATE = re.compile(
+    r"(\d[\d,]*(?:\.\d+)?)\s*(?:emails?|messages?|msgs?|orders?|requests?|req|calls?|sends?|events?)?\s*"
+    r"(?:/|per)\s*(s|sec|second|min|minute|h|hr|hour)\b", re.I)
+SECONDS = {"s": 1, "sec": 1, "second": 1, "min": 60, "minute": 60, "h": 3600, "hr": 3600, "hour": 3600}
+
+
+def rates_per_second(text):
+    return [(match.group(0), float(match.group(1).replace(",", "")) / SECONDS[match.group(2).lower()])
+            for match in RATE.finditer(text)]
+
+
+# Sections whose content is, by heading, not the proposed design.
+SET_ASIDE = re.compile(r"alternativ|rejected|not (?:chosen|needed|used)|considered|out of scope|non-goal"
+                       r"|left out|leave out|deferred|trigger|future|later|scal(?:e|ing) (?:path|step)|10\s*[x×]"
+                       r"|what breaks|when to", re.I)
+DUPLICATE_SAFETY = re.compile(
+    r"idempot|de-?dup|duplicate|double[- ]send|unique|exactly[- ]once|at[- ](?:most|least)[- ]once"
+    r"|skip locked|sent_at|message-id", re.I)
+
+
+ITEM = re.compile(r"\s*(?:[-*+]\s|\d+[.)]\s|\|)")
+
+
+def chunks(text):
+    """Yield (heading, logical line): wrapped lines are joined; headings, list items and table rows stay apart."""
+    heading, current = "", []
+    for line in text.splitlines() + [""]:
+        title = re.match(r"\s*#+\s*(.*)", line)
+        if title or not line.strip() or ITEM.match(line):
+            if current:
+                yield heading, " ".join(part.strip() for part in current)
+            current = [line] if line.strip() and not title else []
+            heading = title.group(1) if title else heading
+        else:
+            current.append(line)
+
+
+def sentences(text):
+    return [part for _, chunk in chunks(text) for part in re.split(r"(?<=[.!?])\s+", chunk) if part.strip()]
+
+
+def proposed_sentences(text):
+    """Sentences outside sections headed as alternatives, rejected or deferred options, or future steps."""
+    return [part for heading, chunk in chunks(text) if not SET_ASIDE.search(heading)
+            for part in re.split(r"(?<=[.!?])\s+", chunk) if part.strip()]
+
+
+def changed_sources(cwd, hashes):
+    return sorted(name for name, value in hashes.items() if digest(cwd / name) != value)
 
 
 def tool_calls(events):
@@ -188,4 +276,33 @@ def grade(case_id, context, events):
         check("unrelated skill not used", not used, used)
     elif case_id == "data-rehearsal":
         checks.extend(data_workflow_case.grade(cwd, context["data_hashes"]))
+    elif case_id == "design-sizing":
+        changed = changed_sources(cwd, context["source_hashes"])
+        check("source unchanged", not changed, {"changed": changed})
+        design = cwd / ".artifacts/design.md"
+        text = design.read_text() if design.is_file() else ""
+        listed = cwd / ".artifacts/components.json"
+        components = json.loads(listed.read_text()) if listed.is_file() else None
+        valid = isinstance(components, list) and all(
+            isinstance(c, dict) and isinstance(c.get("name"), str) and isinstance(c.get("purpose"), str)
+            for c in components)
+        heavy = [c for c in components if HEAVY_INFRASTRUCTURE.search(c["name"] + " " + c["purpose"])] if valid else None
+        recommended = [part.strip() for part in proposed_sentences(text)
+                       if HEAVY_INFRASTRUCTURE.search(part) and not DEFERRED.search(part)]
+        check("no infrastructure beyond the stated load", valid and not heavy and not recommended,
+              {"components": components, "listed": heavy, "recommended_in_design": recommended})
+        # The fixture averages about 0.06 emails/s; a derived peak is a plausible rate stated as a peak
+        # or burst. The relay's 30/s is a given limit and an average alone is not a peak.
+        estimates = [(found, value) for part in sentences(text) if re.search(r"peak|burst", part, re.I)
+                     for found, value in rates_per_second(part) if 0.001 <= value <= 5]
+        check("peak rate estimated with units", estimates,
+              {"peak_rates": estimates, "all_rates": rates_per_second(text)})
+        # Document-level: real designs separate the retry schedule from the duplicate guard.
+        check("retries cannot send duplicates",
+              re.search(r"retr(?:y|ies)|backoff|next_attempt|attempts", text, re.I) and DUPLICATE_SAFETY.search(text),
+              text)
+        check("external calls time out", re.search(r"time-?outs?\b", text, re.I), text)
+        check("rollback path stated", re.search(
+            r"roll[- ]?back|revert|kill[- ]switch|feature flag|(?:disable|turn off|switch off) (?:the )?(?:send|email|sender)",
+            text, re.I), text)
     return checks

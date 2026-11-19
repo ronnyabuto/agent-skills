@@ -4,6 +4,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 import time
@@ -14,8 +15,37 @@ EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
 
 RESULT_FIELDS = (
     "session_id", "subtype", "num_turns", "duration_ms", "duration_api_ms",
-    "total_cost_usd", "usage", "modelUsage",
+    "total_cost_usd", "usage", "modelUsage", "api_error_status",
 )
+
+# Plan, spend and API rate limits end a session without saying anything about the
+# skill. Claude Code already retries transient 429/529 with backoff, so a session
+# that still fails on one is resumable later, not a scored outcome.
+LIMIT_ERROR = "limit_reached"
+LIMIT_TEXT = re.compile(
+    r"hit your [\w-]+ limit|usage limit|spend limit|credit balance is too low"
+    r"|request rejected \(429\)|temporarily limiting requests|rate limit", re.I)
+
+
+def limit_signal(events, result):
+    """Return evidence that a failed session stopped at a usage or rate limit."""
+    if result and result.get("api_error_status") == 429:
+        return "api_error_status 429"
+    texts = []
+    # A normal answer can discuss rate limits; only error text is evidence.
+    if result and result.get("is_error"):
+        texts += [str(result.get("result") or "")] + [str(e) for e in result.get("errors") or []]
+    for event in events:
+        if event.get("is_api_error_message"):
+            texts += [str(block.get("text", "")) for block in event.get("message", {}).get("content", [])]
+    for text in texts:
+        match = LIMIT_TEXT.search(text)
+        if match:
+            return match.group(0)
+    retries = [e for e in events if e.get("type") == "system" and e.get("subtype") == "api_retry"]
+    if retries and retries[-1].get("error") == "rate_limit":
+        return "api_retry rate_limit"
+    return None
 
 
 def positive_number(value):
@@ -76,12 +106,15 @@ def run_session(command, *, cwd, timeout, env=None, output_dir=None):
         error = error or (subtype if subtype.startswith("error") else "session_error")
     elif not result.get("num_turns") and not found:
         error = error or "empty_session"
+    limit = limit_signal(events, result) if error and error != "timeout" else None
+    if limit:
+        error = LIMIT_ERROR
 
     if output_dir is not None:
         Path(output_dir, "session.jsonl").write_text(output, encoding="utf-8")
         Path(output_dir, "stderr.txt").write_text(stderr, encoding="utf-8")
     record = {field: result.get(field) if result else None for field in RESULT_FIELDS}
-    record.update(invoked=found, error=error, returncode=returncode,
+    record.update(invoked=found, error=error, returncode=returncode, limit_evidence=limit,
                   error_detail=result.get("result") if result and error else None,
                   resolved_model=initialization.get("model"),
                   loaded_skills=initialization.get("skills"),

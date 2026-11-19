@@ -1,0 +1,50 @@
+[
+  {
+    "skills": [
+      "system-design"
+    ],
+    "query": "Design how this app should send order-status emails. We have about 300 customers and maybe 500 orders a day.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the system-design skill",
+      "Derives a peak rate with units before choosing components",
+      "Reuses the existing stack (nodemailer, current app) and adds no queue, cache or separate service the estimate doesn't justify",
+      "Names the measurable trigger that would justify the next component",
+      "Gives external calls timeouts, retries with backoff and idempotent sending, and a rollback path"
+    ]
+  },
+  {
+    "skills": [
+      "system-design"
+    ],
+    "query": "Will our upload flow hold up if we grow to 50k users? Sketch the architecture we'd need.",
+    "files": [],
+    "expected_behavior": [
+      "Invokes the system-design skill",
+      "Derives a peak request rate with units from stated or explicit assumptions",
+      "Names what breaks first at about 10x the estimate"
+    ]
+  },
+  {
+    "skills": [
+      "system-design"
+    ],
+    "query": "Explain how consistent hashing works.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke the system-design skill (a concept explanation, not a design of this system)",
+      "Answers directly"
+    ]
+  },
+  {
+    "skills": [
+      "system-design"
+    ],
+    "query": "Rename the usr parameter in src/profile.ts to user.",
+    "files": [],
+    "expected_behavior": [
+      "Does not invoke the system-design skill (a small code edit)",
+      "Makes the rename directly"
+    ]
+  }
+]

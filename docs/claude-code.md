@@ -1,12 +1,15 @@
 # Claude Code compatibility
 
-Reviewed on 2026-11-12 with Claude Code **2.1.322**, Node **24.14.1** and
+Reviewed on 2026-11-19 with Claude Code **2.1.328**, Node **24.14.1** and
 Python **3.14.4**. The offline checks exercise the helper scripts and evaluation
 harness; live outcome reports record their own CLI version, candidate hashes,
 resolved model usage and results. A successful harness check alone does not
 establish model compliance. No older Claude Code minimum is asserted for the
 Markdown skills; the paired outcome runner requires **2.1.300 or later** for
-its tested session controls.
+its tested session controls. Both runners detect usage and rate limits from the
+documented `stream-json` result field `api_error_status` and `system/api_retry`
+events (see [headless mode](https://code.claude.com/docs/en/headless)), with the
+CLI's limit messages as a fallback.
 
 ## Portable format and Claude extensions
 

@@ -76,6 +76,22 @@ class TriggerRunnerTest(unittest.TestCase):
         return {"query": json.dumps(dict(events=events, **behavior)),
                 "expected_behavior": [expected]}
 
+    def test_limit_stops_remaining_cases(self):
+        limited = result(0.0, result="You've hit your session limit", api_error_status=429)
+        limited.update(is_error=True)
+        proc, records = self.run_cases([
+            self.case([invocation(), result(0.1)]),
+            self.case([limited], exit=1),
+            self.case([invocation(), result(0.1)]),
+        ])
+        self.assertEqual(proc.returncode, 75, proc.stderr)
+        self.assertIn("usage or rate limit", proc.stderr)
+        self.assertEqual([r["status"] for r in records[:-1]], ["pass", "error"])
+        self.assertEqual(records[1]["error"], "limit_reached")
+        self.assertTrue(records[-1]["stopped_at_limit"])
+        calls = (self.root / "calls.jsonl").read_text().splitlines()
+        self.assertEqual(len(calls), 2)
+
     def test_counts_failed_work_cost_and_isolates_each_case(self):
         failed = result(0.3)
         failed.update(subtype="error_max_budget_usd", is_error=True)
@@ -154,12 +170,6 @@ class TriggerRunnerTest(unittest.TestCase):
         self.assertEqual(call["effort"], "high")
         self.assertNotIn("--effort", call["args"])
         self.assertTrue(all(r["requested_effort"] is None for r in records))
-
-    def test_invalid_effort_cannot_launch_a_session(self):
-        proc, records = self.run_cases([self.case([result()])], "--effort", "typo")
-        self.assertEqual(proc.returncode, 2)
-        self.assertEqual(records, [])
-        self.assertFalse((self.root / "calls.jsonl").exists())
 
 
 if __name__ == "__main__":

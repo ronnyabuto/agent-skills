@@ -1,0 +1,15 @@
+{
+  "design-sizing": {
+    "skill": "system-design",
+    "query": "Design how this app should email customers when their order status changes. Design only; leave the code unchanged.",
+    "deliverable": "Save the design in .artifacts/design.md. List every component the design adds beyond the existing app and database in .artifacts/components.json as [{\"name\": string, \"purpose\": string}].",
+    "checks": [
+      "source unchanged",
+      "no infrastructure beyond the stated load",
+      "peak rate estimated with units",
+      "retries cannot send duplicates",
+      "external calls time out",
+      "rollback path stated"
+    ]
+  }
+}
