@@ -72,7 +72,7 @@ The existing default model remains `sonnet`; `--model` selects the paired model,
 and the trigger runner takes the model as its positional argument. Compare both
 arms at the same explicit model and effort. Live commands consume model usage.
 
-Omit `--case` for all eight cases; repeat it to select several. Each case runs
+Omit `--case` for all seven cases; repeat it to select several. Each case runs
 sequentially in two fresh sessions with identical synthetic starting state and
 prompt. The selected skill is frozen once under `candidates/`, copied to project scope
 in both workspaces and
@@ -99,8 +99,7 @@ is claimed by the offline stand-in tests.
 | `query-evidence` | Preserve the implementation, retain and execute a replayable probe, show actual SQL traces reducing six queries to one, and preserve all six customer names. |
 | `data-rehearsal` | Use the approved local job; expose a normalization collision hidden by sanitization; preserve the candidate and workflow; report failed readiness without attempting export or deployment. |
 | `routine-control` | Correct simple arithmetic without invoking the unrelated current-docs skill. |
-| `design-sizing` | Leave source unchanged; neither list nor recommend infrastructure (broker, cache, cluster, shard, separate service) that about 2,000 emails a day doesn't need; state a plausible peak rate (0.001–5/s after unit conversion, so the relay's given 30/s doesn't count); tie retries to idempotent sending in the same or next sentence. |
-| `capacity-audit` | Leave source unchanged; tie the missing timeout to the `urlopen` call (line 10); identify retries without backoff and their amplification; state 30/s and 10/s as rates and the resulting excess. |
+| `design-sizing` | Leave source unchanged; neither list nor recommend infrastructure (broker, cache, cluster, shard, separate service) that about 2,000 emails a day doesn't need; state a peak or burst rate that is plausible (0.001–5/s after unit conversion, so neither an average nor the relay's given 30/s counts); guard retries against duplicate sends; time out external calls; state a rollback path. |
 
 The output defaults to a new private `/tmp/skill-outcomes-<timestamp>/` directory.
 An explicit `--output` must be new and outside Git worktrees to avoid inheriting
@@ -119,7 +118,7 @@ project instructions. Keep it until review is finished. It contains:
   output. Worktree metadata remains valid because the workspace stays in place.
 
 `--max-turns` defaults to 16, `--timeout` to 180 seconds, and `--max-budget-usd`
-to $0.75 **per arm**: sixteen arms for the full suite, with a nominal total of $12.00.
+to $0.75 **per arm**: fourteen arms for the full suite, with a nominal total of $10.50.
 The CLI may exceed a spend cap; reported estimated costs are not subscription
 billing. Both runners run without automatic case retries; Claude Code itself
 retries transient 429/529 responses with backoff. Outcome errors are
@@ -193,8 +192,7 @@ when its evidence is no longer needed.
 `outcome_contracts.json` separates natural user requests from serialization-only
 deliverables and hidden check names.
 It is shared with the Codex collection; `outcome_contracts.claude.json` holds
-cases for skills only this collection has (`system-design`, and
-`capacity-audit` for this collection's `project-audit`). The runner merges both,
+cases for skills only this collection has (`system-design`). The runner merges both,
 rejects duplicate case names, and saves and hashes the merged definitions.
 The sibling check compares only the shared file. Only the request and deliverable reach the
 agent. No prompt tells it to fetch origin, disclose missing delegation, reject
@@ -209,8 +207,6 @@ infrastructure fails the case whether it is listed or recommended in the prose;
 sentences that rule it out or defer it behind a trigger are allowed. These are
 deterministic text checks, not judgments of design quality: review the design
 before concluding that a sizing decision was justified.
-`capacity-audit` puts the load figures in the README, not the request, so
-quantifying them is the measured behavior.
 
 `routine-control` asks for a standard-library-free arithmetic correction with
 `current-docs` available. It checks correct results and absence of unrelated

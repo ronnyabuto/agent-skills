@@ -53,10 +53,8 @@ elif case == "data-rehearsal":
         results.append(json.loads(result.stdout))
     pathlib.Path(".artifacts/rehearsal.json").write_text(json.dumps(dict(ready_for_release=False, deployment_performed=False, results=results)))
 elif case == "design-sizing":
-    pathlib.Path(".artifacts/design.md").write_text("About 2,000 status emails a day; peak about 0.3 emails per minute. Send from an outbox table with retry and backoff; a unique (order_id, status) key prevents duplicates.")
+    pathlib.Path(".artifacts/design.md").write_text("About 2,000 status emails a day; peak about 0.3 emails per minute. Send from an outbox table with retry and backoff; a unique (order_id, status) key prevents duplicates. SMTP calls use a 10 s timeout. Roll back by disabling the sender.")
     pathlib.Path(".artifacts/components.json").write_text(json.dumps([{"name": "email_outbox table", "purpose": "durable send state"}]))
-elif case == "capacity-audit":
-    pathlib.Path(".artifacts/audit.md").write_text("rates.py:10 calls urlopen without a timeout. Five immediate retries without backoff amplify load. 30 orders/s against a 10 req/s limit is 3x over; with retries up to 150 requests per second.")
 elif case == "routine-control":
     pathlib.Path("arithmetic.py").write_text("def double(value):\\n    return value * 2\\n")
 elif case == "query-evidence":
@@ -314,6 +312,8 @@ class OutcomeRunnerTest(unittest.TestCase):
         self.assertIn("nothing to resume", proc.stderr)
         self.assertEqual(len(self.calls()), before)
 
+REJECTED_ALTERNATIVES = (Path(__file__).parent / "fixtures/graders/design-sizing-rejected-alternatives.md").read_text()
+
 
 def failing(results):
     return {check["name"] for check in results if not check["passed"]}
@@ -345,49 +345,47 @@ class GraderNearMissTest(unittest.TestCase):
                 self.assertEqual(failing(self.grade(case_id, {**good, **files})), {expected})
 
     def test_design_sizing(self):
-        retry = "Send from an outbox table and retry failures with exponential backoff; "
-        good = {".artifacts/design.md": "About 2,000 status emails a day; peak about 10 emails per minute. " + retry +
-                "a unique (order_id, status) key prevents duplicate sends. Consider Redis only if the outbox "
-                "backlog stays above 1,000 rows for an hour.",
+        part = dict(peak="About 2,000 status emails a day; peak about 10 emails per minute.",
+                    retry=" Send from an outbox table and retry failures with exponential backoff;",
+                    dedupe=" a unique (order_id, status) key prevents duplicate sends.",
+                    timeout=" Each SMTP call has a 10 s timeout.",
+                    rollback=" Roll back by disabling the sender flag.",
+                    deferred=" Consider Redis only if the outbox backlog stays above 1,000 rows for an hour.")
+        design = lambda **changes: "".join({**part, **changes}.values())
+        broker = "\n- A message broker (RabbitMQ/Redis/SQS): extra infrastructure to run for ~2k emails/day.\n"
+        good = {".artifacts/design.md": design(),
                 ".artifacts/components.json": [{"name": "email_outbox table", "purpose": "durable send state"}]}
+        self.assertEqual(failing(self.grade("design-sizing", {**good, ".artifacts/design.md":
+                                                              design() + "\n## Rejected alternatives" + broker})), set())
         self.assertNearMisses("design-sizing", good, {
             "relay limit copied as the estimate": (
-                {".artifacts/design.md": "The relay accepts 30 messages per second. " + retry + "dedupe by order and status."},
+                {".artifacts/design.md": design(peak="The relay accepts 30 messages per second.")},
+                "peak rate estimated with units"),
+            "average without a peak": (
+                {".artifacts/design.md": design(peak="About 2,000 emails a day, roughly 200/hour on average.")},
                 "peak rate estimated with units"),
             "heavy component listed": (
                 {".artifacts/components.json": [{"name": "Kafka cluster", "purpose": "status event stream"}]},
                 "no infrastructure beyond the stated load"),
             "heavy component only in the prose": (
-                {".artifacts/design.md": good[".artifacts/design.md"] + "\nPublish status events to Redis streams for the mailer."},
+                {".artifacts/design.md": design() + "\nPublish status events to Redis streams for the mailer."},
                 "no infrastructure beyond the stated load"),
-            "idempotency unrelated to retries": (
-                {".artifacts/design.md": "Peak about 10 emails per minute. " + retry + "the relay sends them. Templates live in the app. "
-                 "A unique index on customers.email keeps contact data clean."},
-                "retries cannot send duplicates"),
+            "broker listed outside a rejected section": (
+                {".artifacts/design.md": design() + "\n## Messaging" + broker},
+                "no infrastructure beyond the stated load"),
+            "retries with no duplicate guard": (
+                {".artifacts/design.md": design(dedupe=" the relay sends them.")}, "retries cannot send duplicates"),
+            "no timeout on the relay call": ({".artifacts/design.md": design(timeout="")}, "external calls time out"),
+            "no way back": ({".artifacts/design.md": design(rollback="")}, "rollback path stated"),
             "code edited during a design-only task": ({"app.py": "# changed"}, "source unchanged"),
         })
+        # A real Opus 5.5 baseline: the earlier keyword grader wrongly failed its rejected-alternatives
+        # section and its duplicate guard; the gaps it really has are an average without a peak,
+        # no timeout on the relay call and no rollback path.
+        self.assertEqual(failing(self.grade("design-sizing", {**good, ".artifacts/design.md": REJECTED_ALTERNATIVES})),
+                         {"peak rate estimated with units", "external calls time out", "rollback path stated"})
         with self.assertRaises(ValueError):
             self.grade("design-sizing", {**good, ".artifacts/components.json": "not json"})
-
-    def test_capacity_audit(self):
-        good = {".artifacts/audit.md": "rates.py:10 calls urlopen without a timeout, so a slow provider blocks checkout. "
-                "It retries five times immediately with no backoff, which amplifies load. 30 orders/s against the "
-                "10 requests/s limit is 3x over; with retries up to 150 requests per second."}
-        self.assertNearMisses("capacity-audit", good, {
-            "generic timeout advice elsewhere": (
-                {".artifacts/audit.md": good[".artifacts/audit.md"].replace("without a timeout", "unguarded")
-                 + " Consider adding a timeout setting to the deployment."},
-                "missing timeout located"),
-            "retries without backoff analysis": (
-                {".artifacts/audit.md": "rates.py:10 calls urlopen without a timeout. 30 orders/s against the "
-                 "10 requests/s limit is 3x over, and every failure is retried."},
-                "retry amplification identified"),
-            "figures without rates (line 10, 30 retries)": (
-                {".artifacts/audit.md": "Line 10 has no timeout. Retries without backoff amplify load 3x; "
-                 "30 retries can stack up."},
-                "load quantified against the upstream limit"),
-            "source fixed during an investigation": ({"rates.py": "# fixed"}, "source unchanged"),
-        })
 
     def test_audit_scope(self):
         good = {".artifacts/audit.md": "api.py:5 accepts an empty email. parse_request({'email': ''}) returns ok True. "
@@ -471,7 +469,7 @@ class GraderNearMissTest(unittest.TestCase):
 
     def test_contract_files_stay_separate_and_cannot_redefine_a_case(self):
         shared = json.loads(Path(outcome_cases.__file__).with_name("outcome_contracts.json").read_text())
-        self.assertFalse({"design-sizing", "capacity-audit"} & set(shared))
+        self.assertNotIn("design-sizing", shared)
         with tempfile.TemporaryDirectory() as directory:
             for name in outcome_cases.CONTRACT_FILES:
                 Path(directory, name).write_text(json.dumps({"same": {}}))

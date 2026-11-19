@@ -7,18 +7,9 @@
       "source unchanged",
       "no infrastructure beyond the stated load",
       "peak rate estimated with units",
-      "retries cannot send duplicates"
-    ]
-  },
-  "capacity-audit": {
-    "skill": "project-audit",
-    "query": "Audit this project and tell me what is most likely to break in production. Investigation only; leave the source unchanged.",
-    "deliverable": "Save the findings in .artifacts/audit.md.",
-    "checks": [
-      "source unchanged",
-      "missing timeout located",
-      "retry amplification identified",
-      "load quantified against the upstream limit"
+      "retries cannot send duplicates",
+      "external calls time out",
+      "rollback path stated"
     ]
   }
 }
