@@ -208,6 +208,14 @@ sentences that rule it out or defer it behind a trigger are allowed. These are
 deterministic text checks, not judgments of design quality: review the design
 before concluding that a sizing decision was justified.
 
+The peak, timeout and rollback checks were added after an Opus 5.5 baseline
+sized the design correctly but omitted them; the guidance was trimmed to those
+gaps. On 2026-11-19 (Opus 5.5, medium effort) three baselines failed (no
+timeout on external calls 3/3, no rollback 2/3, no derived peak 1/3) and both
+trimmed-skill arms passed, at similar cost per session. Two pairs is a small
+sample. Each grader fix made after a run came from a false flag found by
+reading the artifact; the excerpts are retained as regression tests.
+
 `routine-control` asks for a standard-library-free arithmetic correction with
 `current-docs` available. It checks correct results and absence of unrelated
 skill use. Both arms should pass; it detects unnecessary activation.

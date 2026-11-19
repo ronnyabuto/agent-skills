@@ -384,6 +384,15 @@ class GraderNearMissTest(unittest.TestCase):
         # no timeout on the relay call and no rollback path.
         self.assertEqual(failing(self.grade("design-sizing", {**good, ".artifacts/design.md": REJECTED_ALTERNATIVES})),
                          {"peak rate estimated with units", "external calls time out", "rollback path stated"})
+        # Excerpts from later real answers that earlier versions of the grader misread.
+        wrapped_burst = ("2,000 emails/day is about 0.06 messages/second on average. Even a 10× burst is\n"
+                         "under 1 msg/s, far below the relay's 30 msg/s.")
+        deferral_table = ("## What is deliberately left out, and the trigger to add it\n\n| Component | Trigger |\n|---|---|\n"
+                          "| Message broker / queue service (RabbitMQ, SQS, Redis) | Sustained enqueue rate above ~50/s |\n")
+        for label, text in (("peak sentence wrapped across lines", design(peak=wrapped_burst)),
+                            ("broker deferred behind a trigger", design() + "\n\n" + deferral_table)):
+            with self.subTest(real=label):
+                self.assertEqual(failing(self.grade("design-sizing", {**good, ".artifacts/design.md": text})), set())
         with self.assertRaises(ValueError):
             self.grade("design-sizing", {**good, ".artifacts/components.json": "not json"})
 

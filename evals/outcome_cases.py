@@ -140,26 +140,38 @@ def rates_per_second(text):
 
 # Sections whose content is, by heading, not the proposed design.
 SET_ASIDE = re.compile(r"alternativ|rejected|not (?:chosen|needed|used)|considered|out of scope|non-goal"
-                       r"|future|later|scal(?:e|ing) (?:path|step|trigger)|10\s*[x×]|what breaks|when to", re.I)
+                       r"|left out|leave out|deferred|trigger|future|later|scal(?:e|ing) (?:path|step)|10\s*[x×]"
+                       r"|what breaks|when to", re.I)
 DUPLICATE_SAFETY = re.compile(
     r"idempot|de-?dup|duplicate|double[- ]send|unique|exactly[- ]once|at[- ](?:most|least)[- ]once"
     r"|skip locked|sent_at|message-id", re.I)
 
 
-def proposed_sentences(text):
-    """Sentences outside sections headed as alternatives, rejected options or future steps."""
-    kept, set_aside = [], False
-    for line in text.splitlines():
-        heading = re.match(r"\s*#+\s*(.*)", line)
-        if heading:
-            set_aside = bool(SET_ASIDE.search(heading.group(1)))
-        elif not set_aside:
-            kept += sentences(line)
-    return kept
+ITEM = re.compile(r"\s*(?:[-*+]\s|\d+[.)]\s|\|)")
+
+
+def chunks(text):
+    """Yield (heading, logical line): wrapped lines are joined; headings, list items and table rows stay apart."""
+    heading, current = "", []
+    for line in text.splitlines() + [""]:
+        title = re.match(r"\s*#+\s*(.*)", line)
+        if title or not line.strip() or ITEM.match(line):
+            if current:
+                yield heading, " ".join(part.strip() for part in current)
+            current = [line] if line.strip() and not title else []
+            heading = title.group(1) if title else heading
+        else:
+            current.append(line)
 
 
 def sentences(text):
-    return [part for part in re.split(r"(?<=[.!?])\s+|\n+", text) if part.strip()]
+    return [part for _, chunk in chunks(text) for part in re.split(r"(?<=[.!?])\s+", chunk) if part.strip()]
+
+
+def proposed_sentences(text):
+    """Sentences outside sections headed as alternatives, rejected or deferred options, or future steps."""
+    return [part for heading, chunk in chunks(text) if not SET_ASIDE.search(heading)
+            for part in re.split(r"(?<=[.!?])\s+", chunk) if part.strip()]
 
 
 def changed_sources(cwd, hashes):
