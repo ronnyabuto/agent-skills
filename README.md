@@ -35,9 +35,7 @@ cd agent-skills
 ```
 
 The Bash installer discovers every top-level folder containing `SKILL.md` and
-symlinks it into `~/.claude/skills/` (or `$CLAUDE_CONFIG_DIR/skills/`). It also links
-skills for Antigravity when `~/.gemini/antigravity/` exists; that does not make
-Claude-specific delegation or hooks portable. Existing folders and links pointing
+symlinks it into `~/.claude/skills/` (or `$CLAUDE_CONFIG_DIR/skills/`). Existing folders and links pointing
 elsewhere are skipped. Edits in the linked checkout take effect without copying.
 
 By default it merges vault-memory hooks and `AGENT_VAULT` into Claude's
