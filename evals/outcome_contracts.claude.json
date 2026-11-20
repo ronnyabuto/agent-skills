@@ -12,67 +12,6 @@
       "rollback path stated"
     ]
   },
-  "readability-cleanup": {
-    "skill": "no-ai-tells-audit",
-    "query": "Do a repository-wide readability cleanup of this project: remove AI-style boilerplate from the source. Keep behavior unchanged. Do not commit.",
-    "deliverable": "",
-    "checks": [
-      "rates and zone parsing unchanged",
-      "guard needed by the unvalidated batch caller kept",
-      "narration and restating comments removed",
-      "constraint comments kept"
-    ]
-  },
-  "pinned-client": {
-    "skill": "current-docs",
-    "query": "Add open_total_cents(client, customer_id) to billing.py. It returns the total of the customer's open invoices in integer cents, using the acme-billing client this project depends on. Do not change dependencies. Do not commit.",
-    "deliverable": "",
-    "checks": [
-      "dependencies and installed client unchanged",
-      "works with the installed 1.4.2 client",
-      "every page summed in exact cents"
-    ]
-  },
-  "delegated-audit": {
-    "skill": "managed-audit",
-    "tools": [
-      "Agent"
-    ],
-    "query": "Lead a manager-led audit of the service package, delegating to specialists. Investigation only; leave the source unchanged.",
-    "deliverable": "Save confirmed defects in .artifacts/findings.json as [{\"file\": string, \"line\": integer, \"title\": string, \"severity\": string, \"evidence\": string}].",
-    "checks": [
-      "source unchanged",
-      "missing ownership check located",
-      "search injection located",
-      "pagination offset defect located",
-      "allow-listed sort column not reported",
-      "specialists dispatched"
-    ]
-  },
-  "project-health": {
-    "skill": "project-audit",
-    "query": "Audit the health of this codebase and report prioritized findings. Leave the source unchanged.",
-    "deliverable": "Save .artifacts/audit.json as {\"findings\": [{\"severity\": \"Critical\" | \"High\" | \"Medium\" | \"Low\", \"file\": string, \"line\": integer, \"scenario\": string, \"fix\": string}], \"test_run\": {\"command\": string, \"passed\": integer, \"failed\": integer}}. Use null for test_run fields you did not observe.",
-    "checks": [
-      "source unchanged",
-      "committed secret rated critical or high",
-      "refund above the paid amount located",
-      "vulnerable PyYAML pin reported",
-      "test suite run and reported accurately",
-      "non-security MD5 cache key not escalated"
-    ]
-  },
-  "cli-startup": {
-    "skill": "ux-speed-audit",
-    "query": "Users say `python3 tool.py version` feels sluggish. Audit its startup responsiveness. Leave the source unchanged.",
-    "deliverable": "Save .artifacts/speed.json as {\"command\": string, \"runs\": integer, \"median_seconds\": number, \"findings\": [{\"file\": string, \"line\": integer, \"cause\": string, \"fix\": string}]}.",
-    "checks": [
-      "source unchanged",
-      "startup executed rather than estimated",
-      "reported median matches a re-measurement",
-      "eager import chain located"
-    ]
-  },
   "stale-main": {
     "skill": "new-feature",
     "query": "Fix slugify in text_utils.py so slugs are lowercase. Do not commit.",

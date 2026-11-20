@@ -24,11 +24,14 @@ skill and the files that reference it (other skills, evals, docs) before changin
 its behavior. Keep platform-specific hooks and capture helpers with their owners.
 
 A skill earns its place by changing outcomes against a no-skill baseline, not by
-restating good practice. Measure behavior changes with the paired outcome runner
-(paid; run only when asked) and remove guidance that shows no effect.
+restating good practice. Propose a new skill or section only after a baseline run
+has shown the failure it fixes, and write the smallest text that fixes it. Measure
+with the paired outcome runner (paid; run only when asked) at `--runs 3` or more,
+including a held-out case the skill was not tuned on, and remove guidance that
+shows no effect. Re-run the suite when the default model changes.
 
-`current-docs` is shared byte-for-byte with the Codex collection; change both
-together.
+The shared outcome contracts and the data-workflows reference are kept
+byte-for-byte with the Codex collection; change both together.
 
 Offline verification:
 

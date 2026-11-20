@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SHARED_SKILLS = ("current-docs",)
 SHARED_REFERENCES = ("evidence-driven-testing/references/data-workflows.md",)
 
 
@@ -18,9 +17,6 @@ def compare(first, second):
     a, b = (json.loads((root / "evals/outcome_contracts.json").read_text()) for root in (first, second))
     if a != b:
         problems.append("outcome prompts, deliverables or grading contract names differ")
-    for skill in SHARED_SKILLS:
-        if (skill_root(first) / skill / "SKILL.md").read_bytes() != (skill_root(second) / skill / "SKILL.md").read_bytes():
-            problems.append(f"shared guidance differs: {skill}")
     for reference in SHARED_REFERENCES:
         if (skill_root(first) / reference).read_bytes() != (skill_root(second) / reference).read_bytes():
             problems.append(f"shared guidance differs: {reference}")
@@ -39,7 +35,7 @@ def main():
         for problem in problems:
             print(problem)
         return 1
-    print("Shared outcome contracts, the shared current-docs skill and data guidance match.")
+    print("Shared outcome contracts and data guidance match.")
     return 0
 
 

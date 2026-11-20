@@ -7,11 +7,10 @@ import subprocess
 import sys
 
 import data_workflow_case
-import skill_value_cases
 
 
-# The first file is shared byte-for-byte with the Codex collection; the second holds
-# cases only this collection runs.
+# The first file is shared byte-for-byte with the Codex collection, which still ships
+# managed-audit and current-docs; the second holds cases only this collection runs.
 CONTRACT_FILES = ("outcome_contracts.json", "outcome_contracts.claude.json")
 
 
@@ -109,8 +108,6 @@ def after(db):
         write(cwd, "arithmetic.py", "def double(value):\n    return value + 1\n")
     elif case_id == "data-rehearsal":
         context["data_hashes"] = data_workflow_case.prepare(cwd)
-    elif case_id in skill_value_cases.CASES:
-        context.update(skill_value_cases.CASES[case_id][0](cwd))
     elif case_id == "stale-main":
         # Held out from new-feature tuning: a plain checkout on main that is behind origin.
         write(cwd, "text_utils.py", "def slugify(title):\n    return '-'.join(title.split())\n")
@@ -310,8 +307,6 @@ def grade(case_id, context, events):
         check("unrelated skill not used", not used, used)
     elif case_id == "data-rehearsal":
         checks.extend(data_workflow_case.grade(cwd, context["data_hashes"]))
-    elif case_id in skill_value_cases.CASES:
-        skill_value_cases.CASES[case_id][1](cwd, context, events, check, tool_calls)
     elif case_id == "stale-main":
         branch = git(cwd, "branch", "--show-current")
         check("task branch created", branch not in ("", "main"), {"branch": branch})
