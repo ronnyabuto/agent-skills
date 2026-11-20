@@ -77,7 +77,7 @@ if mode == "fail":
     elif case == "query-evidence":
         pathlib.Path(".artifacts/probe-output.json").write_text("invalid JSON")
 if mode == "file-read":
-    call("Read", file_path=str(pathlib.Path.cwd() / ".claude/skills" / skill / "SKILL.md"), limit=10)
+    call("Read", file_path=str(pathlib.Path.cwd().parents[2] / "candidates" / skill / "SKILL.md"), limit=10)
 if mode == "contaminated":
     call("Skill", skill=skill)
 print(json.dumps(dict(type="result", subtype="success" if mode != "error" else "error_max_budget_usd", is_error=mode == "error", num_turns=3, total_cost_usd=None if mode == "missing-cost" else 0.1, usage={"input_tokens":100}, modelUsage={"fake-model":{"costUSD":0.1}}, session_id="fake-session")))
@@ -222,6 +222,23 @@ class OutcomeRunnerTest(unittest.TestCase):
         entry = Path(disabled["artifacts"]) / "project/.claude/skills/managed-audit/SKILL.md"
         self.assertFalse(entry.exists())
         self.assertEqual(records[-1]["comparable_pairs"], 0)
+
+    def test_naming_the_deleted_entrypoint_is_not_a_read(self):
+        # A real baseline ran `cat .claude/skills/vault-memory/SKILL.md 2>/dev/null` in the disabled arm.
+        from run_outcome_evals import skill_entry_referenced
+        with tempfile.TemporaryDirectory() as directory:
+            cwd = Path(directory, "project")
+            (cwd / ".claude/skills/vault-memory").mkdir(parents=True)
+            frozen = Path(directory, "candidates/vault-memory")
+            frozen.mkdir(parents=True)
+            (frozen / "SKILL.md").write_text("instructions")
+            bash = lambda command: {"name": "Bash", "input": {"command": command}}
+            self.assertFalse(skill_entry_referenced(
+                bash("cat .claude/skills/vault-memory/SKILL.md 2>/dev/null | head -60"), "vault-memory", cwd))
+            self.assertTrue(skill_entry_referenced(
+                bash("head -40 ../candidates/vault-memory/SKILL.md"), "vault-memory", cwd))
+            self.assertTrue(skill_entry_referenced(
+                {"name": "Read", "input": {"file_path": str(frozen / "SKILL.md")}}, "vault-memory", cwd))
 
     def test_client_provided_skills_are_recorded_without_invalidating(self):
         proc, records = self.run_evals("--case", "audit-scope")

@@ -225,6 +225,21 @@ trimmed-skill arms passed, at similar cost per session. Two pairs is a small
 sample. Each grader fix made after a run came from a false flag found by
 reading the artifact; the excerpts are retained as regression tests.
 
+On 2026-11-20 (Opus 5.5, medium effort, three paired runs per case, whole shell
+commands approved; artifacts read before scoring) the results were:
+
+| Case | Skill | Without | Reading of the artifacts |
+|---|---|---|---|
+| `assigned-worktree`, `stale-main` (held out) | 6/6 | 0/6 | Baselines never fetched or branched from a fresh origin/main. |
+| `tracking-design` (held out) | 3/3 | 0/3 | No baseline design had a timeout or a rollback. |
+| `design-sizing` | 1/3 | 1/3 | Baselines now include timeouts and rollback; the peak check misses wording such as "busiest times" in both arms. |
+| `data-rehearsal`, `query-evidence` | 6/6 | 6/6 | Tie. `data-rehearsal` failed without the skill on 2026-11-12, when command-prefix rules still blocked ordinary shell use. |
+| `memory-recall` | 0/3 | 0/3 | Both arms recalled the decision, date and source; both read the whole six-line note, failing only the bounded-retrieval check. Without SKILL.md the baseline used the vault's helper scripts. |
+
+Three disabled `memory-recall` arms were first voided because `cat` named the deleted
+SKILL.md; the runner now flags only a SKILL.md path that exists, such as the
+run's frozen `candidates/` copy, and they were regraded from saved transcripts.
+
 In the Codex collection, `routine-control` asks for a standard-library-free arithmetic correction with
 `current-docs` available. It checks correct results and absence of unrelated
 skill use. Both arms should pass; it detects unnecessary activation.

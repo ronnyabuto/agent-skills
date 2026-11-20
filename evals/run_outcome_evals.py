@@ -53,6 +53,19 @@ def session_command(args, query, settings):
     return command
 
 
+def skill_entry_referenced(call, skill, cwd):
+    """True when a Read or Bash call names this skill's SKILL.md at a path that exists.
+
+    The disabled arm has no SKILL.md, so naming that path reads nothing; the run's frozen
+    candidates/ copy, or any other existing copy, would still leak the instructions.
+    """
+    text = call.get("input", {}).get("file_path" if call["name"] == "Read" else "command", "")
+    if call["name"] not in ("Read", "Bash") or f"{skill}/SKILL.md" not in text:
+        return False
+    paths = re.findall(r"[^\s'\"`;|&<>()]*" + re.escape(f"{skill}/SKILL.md"), text)
+    return any((cwd / Path(path).expanduser()).is_file() for path in paths)
+
+
 def run_arm(case_id, run, arm, args, destination):
     case = CASES[case_id]
     skill = case["skill"]
@@ -89,10 +102,7 @@ def run_arm(case_id, run, arm, args, destination):
     values = [usage.get(field) for field in fields]
     record["reported_tokens"] = sum(values) if all(type(v) is int and v >= 0 for v in values) else None
     calls = tool_calls(events)
-    read = any(
-        call["name"] == "Read" and f"/{skill}/SKILL.md" in call.get("input", {}).get("file_path", "")
-        or call["name"] == "Bash" and f"/{skill}/SKILL.md" in call.get("input", {}).get("command", "")
-        for call in calls)
+    read = any(skill_entry_referenced(call, skill, cwd) for call in calls)
     record.update(type="case", case=case_id, run=run, skill=skill, arm=arm, skill_read=read,
                   artifacts=str(destination), candidate_sha256=candidate_hash, available_sha256=available_hash)
     if snapshot_hash(skill_dir) != available_hash:
