@@ -1,11 +1,9 @@
 # agent-skills
 
 Four on-demand [Agent Skills](https://agentskills.io) for Claude Code: task
-setup, load-sized system design, evidence capture, and local vault memory. Each
-one kept its place by beating a no-skill baseline in paired runs. This repository contains `SKILL.md`
-procedures, supporting references, helper scripts, an installer, and eval
-fixtures. It is the Claude Code collection; the separate Codex package and
-installation are maintained separately.
+setup, load-sized system design, a screen recorder for UI proof, and local vault
+memory. This repository contains `SKILL.md` procedures, supporting references,
+helper scripts, an installer, and eval fixtures.
 
 For model selection, task scope and measuring context overhead, see
 [efficient use with Claude Opus 5.5](docs/efficient-use.md). This is an on-demand
@@ -17,22 +15,16 @@ guide; installation does not add it to standing instructions.
 |---|---|
 | [new-feature](new-feature/SKILL.md) | Start task branches; isolate workspaces when needed |
 | [system-design](system-design/SKILL.md) | Design a service or integration sized to its estimated load |
-| [evidence-driven-testing](evidence-driven-testing/SKILL.md) | Capture recordings, screenshots, or measured proof |
+| [evidence-driven-testing](evidence-driven-testing/SKILL.md) | Record annotated video of live UI interaction as proof |
 | [vault-memory](vault-memory/SKILL.md) | Archive sessions and recall relevant Markdown notes |
 
-Five earlier skills (`current-docs`, `project-audit`, `ux-speed-audit`, `managed-audit`,
-`no-ai-tells-audit`) were removed on 2026-11-20: Opus 5.5 matched them without the
-skill in three paired runs each. Git history keeps them; the Codex collection still
-ships its own copies. Concurrent source writers need separate worktrees;
-performance measurements need a quiet machine.
-
-For production-derived test data, migration rehearsal and release checks, see
-[project-owned data workflows](evidence-driven-testing/references/data-workflows.md).
-
-For verification, `evidence-driven-testing` covers
-[realistic scenarios and retaining useful tests](evidence-driven-testing/references/useful-tests.md).
-Verification need not add permanent test files; retain checks for meaningful
-uncovered behavior, and preserve older regression cases while they remain relevant.
+`new-feature` and `system-design` beat a no-skill baseline on held-out cases.
+`vault-memory` and `evidence-driven-testing` keep their instructions short: their
+value is the hooks, search and recorder they ship, which the model doesn't have.
+Five earlier skills (`current-docs`, `project-audit`, `ux-speed-audit`,
+`managed-audit`, `no-ai-tells-audit`) and the data-workflow and test-design
+guidance were removed on 2026-11-20 after Opus 5.5 matched them without the skill
+in three paired runs; git history keeps them.
 
 ## Installation and requirements
 
@@ -64,8 +56,7 @@ after installation to load the hooks.
 Vault hooks require Node 22.x ≥ 22.16 or Node ≥ 24 with SQLite FTS5; the installer
 probes runtime capabilities and leaves hooks uninstalled if unavailable. Obsidian
 is optional. Desktop evidence recording needs Python 3, a drivable GUI, and
-`ffmpeg`/`ffprobe` with libx264 and the ass filter. Headless evidence uses a
-scriptable browser or probe instead. Git task setup needs Git and GitHub CLI;
+`ffmpeg`/`ffprobe` with libx264 and the ass filter. Git task setup needs Git and GitHub CLI;
 live evals need Python 3 and an authenticated Claude Code CLI. The paired
 outcome runner requires Claude Code ≥ 2.1.300. See
 [compatibility and optional diagnostics](docs/claude-code.md) for the reviewed
@@ -89,8 +80,8 @@ and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
 ## Evaluation and provenance
 
-The collection retains 20 trigger scenarios across 4 skills and runs seven
-paired outcome cases. Trigger evaluations measure discovery; outcome evaluations
+The collection retains 18 trigger scenarios across 4 skills and runs five
+paired outcome cases, two of them held out. Trigger evaluations measure discovery; outcome evaluations
 compare fresh enabled/disabled sessions and grade actual files, returned data,
 retrieved decisions and retained evidence. Neither establishes complete model
 compliance by itself. See [evaluation instructions and rubrics](evals/README.md).

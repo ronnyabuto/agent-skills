@@ -46,11 +46,11 @@ Python 3 and FFmpeg.
   `screencapture -v out.mov`). On these paths there is no annotation overlay,
   so keep the annotation protocol as files — an `assertions.md` listing each
   `setup` / `test_start` / `assertion` with its result and the approximate
-  video timestamp, exactly as in the headless path.
+  video timestamp.
 - **Never** present `--source test` (the synthetic pattern generator) as UI
   evidence. It exists to smoke-test the toolchain.
-- **Toolchain missing** (`doctor` exits non-zero): use an available alternative or
-  [headless capture](headless.md). Evaluate permissions before installing
+- **Toolchain missing** (`doctor` exits non-zero): use an available alternative,
+  such as the project's browser tooling. Evaluate permissions before installing
   system packages; do not claim a recording when capture is unavailable.
 
 ## Instructions
@@ -157,7 +157,7 @@ Python 3 and FFmpeg.
 - The video must show the actual test session being driven live. Never present
   scripted playback, stitched clips, or synthetic footage as a recording; if
   the harness lacks computer-use tools but a GUI exists, drive via
-  `cua-driver`; with no GUI at all, use [headless capture](headless.md) instead.
+  `cua-driver`; with no GUI at all, mark the recording untested.
 - Never record a half-covered or tiled window — maximize first.
 - Never record a screen showing secrets, tokens, customer data, or payment
   details; if a flow requires them, mark it `untested` and say why.
@@ -189,8 +189,7 @@ unchanged; only the input mechanism differs.
   per-turn trajectory folders (before/after screenshots, `action.json`,
   `click.png`), no video. After stopping, verify `recording.mp4` exists
   before citing it; if it is absent, fix the recorder or present the
-  per-turn before/after screenshots as numbered captures per the headless
-  protocol.
+  per-turn before/after screenshots as numbered captures.
 - If no annotation overlay is available on this path, keep the protocol as
   files: an `assertions.md` listing each `test_start` / `assertion` with its
-  result, exactly as in the headless path.
+  result.

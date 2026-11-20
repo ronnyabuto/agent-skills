@@ -23,7 +23,7 @@ model calls and do not claim that Claude follows the skills.
 
 ## Trigger evaluations
 
-`*.json` contains 20 scenarios across 4 skills. The first expectation's
+`*.json` contains 18 scenarios across 4 skills. The first expectation's
 `Invokes` or `Does not invoke` prefix determines the score; behavioral-only
 cases are skipped. Subsequent expectations remain useful for transcript review.
 
@@ -77,9 +77,7 @@ The existing default model remains `sonnet`; `--model` selects the paired model,
 and the trigger runner takes the model as its positional argument. Compare both
 arms at the same explicit model and effort. Live commands consume model usage.
 
-Omit `--case` for every case whose skill this collection ships; repeat it to select
-several. `audit-scope` and `routine-control` stay in the shared contracts for the
-Codex collection's `managed-audit` and `current-docs`. Each case runs
+Omit `--case` for every case; repeat it to select several. Each case runs
 sequentially in two fresh sessions with identical synthetic starting state and
 prompt. The selected skill is frozen once under `candidates/`, copied to project scope
 in both workspaces and
@@ -101,11 +99,7 @@ is claimed by the offline stand-in tests.
 | Case | Observable checks |
 |---|---|
 | `assigned-worktree` | Keep the assigned branch/worktree, fetch the local origin, retain the current base, correct calendar results and leave the main checkout untouched. |
-| `audit-scope` (Codex only) | Leave source unchanged, identify the actual validation failure with a location and reproduction, and disclose unavailable delegation. |
 | `memory-recall` | Retrieve the current decision and constraint, cite its dated source, avoid adopting superseded advice and use bounded retrieval. |
-| `query-evidence` | Preserve the implementation, retain and execute a replayable probe, show actual SQL traces reducing six queries to one, and preserve all six customer names. |
-| `data-rehearsal` | Use the approved local job; expose a normalization collision hidden by sanitization; preserve the candidate and workflow; report failed readiness without attempting export or deployment. |
-| `routine-control` (Codex only) | Correct simple arithmetic without invoking the unrelated current-docs skill. |
 | `design-sizing` | Leave source unchanged; neither list nor recommend infrastructure (broker, cache, cluster, shard, separate service) that about 2,000 emails a day doesn't need; state a peak or burst rate that is plausible (0.001–5/s after unit conversion, so neither an average nor the relay's given 30/s counts); guard retries against duplicate sends; time out external calls; state a rollback path. |
 | `stale-main` | Held out for `new-feature`: on a checkout whose main is behind origin, fix the bug on a task branch that contains the fetched origin/main, doesn't track main, and leaves local main where it was. |
 | `tracking-design` | Held out for `system-design`: the `design-sizing` rubric applied to keeping shipment statuses current from a carrier API (20 requests/s limit, webhooks available). |
@@ -127,7 +121,7 @@ project instructions. Keep it until review is finished. It contains:
   output. Worktree metadata remains valid because the workspace stays in place.
 
 `--max-turns` defaults to 16, `--timeout` to 180 seconds, and `--max-budget-usd`
-to $0.75 **per arm**: fourteen arms for the full suite, with a nominal total of $10.50.
+to $0.75 **per arm**: ten arms for the full suite, with a nominal total of $7.50.
 The CLI may exceed a spend cap; reported estimated costs are not subscription
 billing. Both runners run without automatic case retries; Claude Code itself
 retries transient 429/529 responses with backoff. Outcome errors are
@@ -199,16 +193,12 @@ when its evidence is no longer needed.
 
 `outcome_contracts.json` separates natural user requests from serialization-only
 deliverables and hidden check names.
-It is shared with the Codex collection; `outcome_contracts.claude.json` holds
-cases only this collection runs: `design-sizing`, and the held-out `stale-main` and
-`tracking-design`. The runner merges both,
-rejects duplicate case names, and saves and hashes the merged definitions.
-The sibling check compares only the shared file. Only the request and deliverable reach the
-agent. No prompt tells it to fetch origin, disclose missing delegation, reject
-superseded notes, or use bounded reads. File names and the query probe JSON
-interface remain explicit so deterministic graders can replay the evidence; this
-is still a constrained artifact-delivery evaluation, not unconstrained chat.
-The request does not give expected counts or customer names.
+The runner saves and hashes the definitions with each run. Only the request and
+deliverable reach the agent. No prompt tells it to fetch origin, reject superseded
+notes, or use bounded reads. File names stay explicit so deterministic graders can
+check the evidence; this is still a constrained artifact-delivery evaluation, not
+unconstrained chat. `stale-main` and `tracking-design` are held out: neither skill
+was tuned on them.
 
 `design-sizing` states the traffic in the fixture README, not the request, and the
 `components.json` format names only what to list, not how to size it. Heavy
@@ -233,53 +223,15 @@ commands approved; artifacts read before scoring) the results were:
 | `assigned-worktree`, `stale-main` (held out) | 6/6 | 0/6 | Baselines never fetched or branched from a fresh origin/main. |
 | `tracking-design` (held out) | 3/3 | 0/3 | No baseline design had a timeout or a rollback. |
 | `design-sizing` | 1/3 | 1/3 | Baselines now include timeouts and rollback; the peak check misses wording such as "busiest times" in both arms. |
-| `data-rehearsal`, `query-evidence` | 6/6 | 6/6 | Tie. `data-rehearsal` failed without the skill on 2026-11-12, when command-prefix rules still blocked ordinary shell use. |
+| `data-rehearsal`, `query-evidence` (since removed) | 6/6 | 6/6 | Tie. `data-rehearsal` failed without the skill on 2026-11-12, when command-prefix rules still blocked ordinary shell use. The data-workflow and test-design guidance and both cases were removed; `evidence-driven-testing` now covers only the recorder. |
 | `memory-recall` | 0/3 | 0/3 | Both arms recalled the decision, date and source; both read the whole six-line note, failing only the bounded-retrieval check. Without SKILL.md the baseline used the vault's helper scripts. |
 
 Three disabled `memory-recall` arms were first voided because `cat` named the deleted
 SKILL.md; the runner now flags only a SKILL.md path that exists, such as the
 run's frozen `candidates/` copy, and they were regraded from saved transcripts.
 
-In the Codex collection, `routine-control` asks for a standard-library-free arithmetic correction with
-`current-docs` available. It checks correct results and absence of unrelated
-skill use. Both arms should pass; it detects unnecessary activation.
-
 Each summary retains enabled-minus-disabled per-pair token, elapsed-time,
 native turn deltas, alongside outcome scores. Unknown metrics
 stay unknown; error/skipped pairs are excluded. Native turn definitions and
-usage accounting differ by client, so compare deltas within a client/model,
-not absolute Claude and Codex turn counts. A single run is not a latency
-benchmark. Saved contracts and their hash identify the exact prompt definitions.
-
-When both source checkouts are available, run:
-
-```bash
-python3 evals/check_sibling_contracts.py /path/to/other-checkout
-```
-
-This optional check compares shared outcome definitions and four intentionally
-platform-neutral skills plus the shared data-workflow reference. Update both
-reviewed copies together; do not generate
-one client package from the other. Hook/transcript formats, memory namespaces,
-recorders, installers, worktree environments and runtime adapters intentionally
-remain separate. No sibling checkout is needed for installation or ordinary
-offline tests.
-
-## Data workflow cases
-
-`data-rehearsal` exercises a disposable in-memory SQLite migration through a
-project runbook and bounded job output. The grader replays trusted fixture
-commands and compares recorded outcomes and protected file hashes. Offline
-checks verify the passing sanitized subset, failing legacy shape, denied
-export/deploy attempts and incorrect readiness reports. They test the fixture
-and grader, not agent compliance, production isolation, sanitizer safety or
-production database compatibility. Job logs are observable fixture state, not
-a tamper-proof audit trail; inspect transcripts for shortcuts and other actions.
-
-[Data workflow review scenarios](data-workflow-scenarios.json) complement the
-paired case with confidentiality, authority and proportionality decisions.
-These are manual outcome rubrics, not keyword scores or input to the paired
-runner. In a separately authorized live evaluation, give a fresh session only
-the request and synthetic project context; review actions and outcomes against
-the rubric, including the failure conditions. Mark unexecuted cases untested.
-No live results for these new cases are claimed by their offline checks.
+usage accounting differ by client version, so compare deltas within one client and
+model. A single run is not a latency benchmark. Saved contracts and their hash identify the exact prompt definitions.

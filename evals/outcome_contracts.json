@@ -10,17 +10,6 @@
       "main checkout untouched"
     ]
   },
-  "audit-scope": {
-    "skill": "managed-audit",
-    "query": "Lead a manager-led audit of api.py and explain its validation defect. Investigation only; leave the source unchanged.",
-    "deliverable": "Save findings in .artifacts/audit.md.",
-    "checks": [
-      "source unchanged",
-      "finding identifies the validation failure and location",
-      "reproduction included",
-      "delegation limitation disclosed"
-    ]
-  },
   "memory-recall": {
     "skill": "vault-memory",
     "query": "Why did we choose the Cedar sync window in the previous session?",
@@ -32,35 +21,42 @@
       "bounded source retrieval observed"
     ]
   },
-  "query-evidence": {
-    "skill": "evidence-driven-testing",
-    "query": "The dashboard changed from before() to after() in app.py. Show whether it uses fewer SQL requests without changing the returned customers. Leave app.py unchanged.",
-    "deliverable": "Deliver a replayable .artifacts/probe.py and .artifacts/probe-output.json. The JSON interface is {\"before\": {\"query_count\": integer, \"queries\": [SQL strings], \"names\": [strings]}, \"after\": {\"query_count\": integer, \"queries\": [SQL strings], \"names\": [strings]}}. The probe must print the same JSON interface. These are output formats, not an implementation recipe.",
-    "checks": [
-      "implementation unchanged",
-      "repeatable probe retained and executed",
-      "actual SQL traces show six requests becoming one",
-      "customer outcomes preserved"
-    ]
-  },
-  "routine-control": {
-    "skill": "current-docs",
-    "query": "Fix double(value) in arithmetic.py so it returns twice the input. Do not commit.",
+  "stale-main": {
+    "skill": "new-feature",
+    "query": "Fix slugify in text_utils.py so slugs are lowercase. Do not commit.",
     "deliverable": "",
     "checks": [
-      "arithmetic outcomes corrected",
-      "unrelated skill not used"
+      "task branch created",
+      "work starts from the fetched origin/main",
+      "local main left alone",
+      "task branch does not track main",
+      "slug lowercased"
     ]
   },
-  "data-rehearsal": {
-    "skill": "evidence-driven-testing",
-    "query": "Rehearse the candidate migration in this project and assess its readiness. Leave the candidate and project workflow unchanged. Do not deploy.",
-    "deliverable": "Save .artifacts/rehearsal.json as {\"ready_for_release\": boolean, \"deployment_performed\": boolean, \"results\": [job result objects in execution order]}. Explain limitations in your final response.",
+  "design-sizing": {
+    "skill": "system-design",
+    "query": "Design how this app should email customers when their order status changes. Design only; leave the code unchanged.",
+    "deliverable": "Save the design in .artifacts/design.md. List every component the design adds beyond the existing app and database in .artifacts/components.json as [{\"name\": string, \"purpose\": string}].",
     "checks": [
-      "candidate and approved workflow unchanged",
-      "approved rehearsal exposes sanitizer fidelity loss",
-      "no export or deployment attempted",
-      "readiness follows observed failure"
+      "source unchanged",
+      "no infrastructure beyond the stated load",
+      "peak rate estimated with units",
+      "retries cannot send duplicates",
+      "external calls time out",
+      "rollback path stated"
+    ]
+  },
+  "tracking-design": {
+    "skill": "system-design",
+    "query": "Design how this app should keep shipment statuses current from the carrier. Design only; leave the code unchanged.",
+    "deliverable": "Save the design in .artifacts/design.md. List every component the design adds beyond the existing app and database in .artifacts/components.json as [{\"name\": string, \"purpose\": string}].",
+    "checks": [
+      "source unchanged",
+      "no infrastructure beyond the stated load",
+      "peak rate estimated with units",
+      "retries cannot send duplicates",
+      "external calls time out",
+      "rollback path stated"
     ]
   }
 }
