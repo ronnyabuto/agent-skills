@@ -37,7 +37,7 @@ does not require rerunning it or changing global configuration.
 
 | Existing workflow | What this collection adds |
 |---|---|
-| `/run`, `/verify`, project launch skills | `evidence-driven-testing` reuses their launch recipes and completed checks, then retains assertions, measurements or captures needed to substantiate the claim. |
+| `/run`, `/verify`, project launch skills | `evidence-driven-testing` records the live UI those recipes launch when a video is requested; it adds no other verification workflow. |
 | Built-in auto memory | `vault-memory` provides an explicit local Markdown archive and keyword search across sessions and decision notes. It requires its own hooks and privacy configuration. |
 
 See the [bundled skills documentation](https://code.claude.com/docs/en/skills#bundled-skills)

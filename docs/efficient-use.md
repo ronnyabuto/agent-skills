@@ -9,7 +9,7 @@ actual uncertainty. Do not require the entire collection for every edit.
 | Fresh implementation | `new-feature` once; preserve existing work and verify the base |
 | Established local fix | Inspect the owner and callers, fix it, run the affected check |
 | Design or capacity plan for a new service or integration | `system-design` |
-| Requested proof, test design or measured improvement | `evidence-driven-testing`; choose the relevant reference |
+| Requested video of live UI behavior | `evidence-driven-testing` (the recorder) |
 | Previous decision needed | `vault-memory`; search distinctive terms, then read matching lines |
 
 Do not repeat a successful launch, review or verification pass unless something

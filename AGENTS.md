@@ -30,9 +30,6 @@ with the paired outcome runner (paid; run only when asked) at `--runs 3` or more
 including a held-out case the skill was not tuned on, and remove guidance that
 shows no effect. Re-run the suite when the default model changes.
 
-The shared outcome contracts and the data-workflows reference are kept
-byte-for-byte with the Codex collection; change both together.
-
 Offline verification:
 
 ```bash
@@ -40,6 +37,4 @@ python3 -m unittest discover -s evals -p 'test_*.py' -v
 python3 vault-memory/scripts/test_vault.py
 ```
 
-Use `evals/check_sibling_contracts.py` when both checkouts are available to check
-the shared outcome definitions. Each repository remains independently usable.
 Do not run paid model evaluations or install global hooks as an offline check.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs these skills for Claude Code (and Antigravity, if present):
+# Installs these skills for Claude Code:
 #   - symlinks every skill folder into ~/.claude/skills/
 #   - merges vault-memory's hooks and AGENT_VAULT into ~/.claude/settings.json
 #
@@ -16,7 +16,6 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SETTINGS="$CLAUDE_DIR/settings.json"
-ANTIGRAVITY_SKILLS="$HOME/.gemini/antigravity/skills"
 if [ "$CLAUDE_DIR" = "$HOME/.claude" ]; then
   HOOK_CMD="node ~/.claude/skills/vault-memory/scripts/vault.mjs hook"
 else
@@ -186,7 +185,6 @@ EOF
 if [ "$UNINSTALL" = 1 ]; then
   say "Removing skill links that point into $REPO"
   unlink_skills "$CLAUDE_DIR/skills" "~/.claude/skills"
-  [ -d "$ANTIGRAVITY_SKILLS" ] && unlink_skills "$ANTIGRAVITY_SKILLS" "antigravity"
   if [ -f "$SETTINGS" ] && command -v node >/dev/null 2>&1; then
     say "Removing vault-memory hooks from $SETTINGS"
     edit_settings uninstall
@@ -197,9 +195,6 @@ fi
 
 say "Linking skills from $REPO"
 link_skills "$CLAUDE_DIR/skills" "~/.claude/skills"
-if [ -d "$(dirname "$ANTIGRAVITY_SKILLS")" ]; then
-  link_skills "$ANTIGRAVITY_SKILLS" "antigravity"
-fi
 
 if [ "$HOOKS" = 0 ]; then
   say "Skipping hooks (--no-hooks). vault-memory still works when asked, but won't archive sessions automatically."

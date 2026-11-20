@@ -6,26 +6,9 @@ import re
 import subprocess
 import sys
 
-import data_workflow_case
 
 
-# The first file is shared byte-for-byte with the Codex collection, which still ships
-# managed-audit and current-docs; the second holds cases only this collection runs.
-CONTRACT_FILES = ("outcome_contracts.json", "outcome_contracts.claude.json")
-
-
-def load_contracts(directory=Path(__file__).parent):
-    cases = {}
-    for name in CONTRACT_FILES:
-        definitions = json.loads((directory / name).read_text())
-        duplicate = set(cases) & set(definitions)
-        if duplicate:
-            raise ValueError(f"{name} redefines {sorted(duplicate)}")
-        cases.update(definitions)
-    return cases
-
-
-CASES = load_contracts()
+CASES = json.loads((Path(__file__).parent / "outcome_contracts.json").read_text())
 
 
 def contracts_bytes():
@@ -75,39 +58,11 @@ def prepare(case_id, root):
         context.update(cwd=assigned, main=cwd, base=git(cwd, "rev-parse", "HEAD"),
                        source_hash=digest(cwd / "calendar_app.py"))
         (assigned / ".artifacts").mkdir()
-    elif case_id == "audit-scope":
-        write(cwd, "api.py", 'def parse_request(body):\n    if not isinstance(body, dict):\n        return {"ok": False, "error": "body must be an object"}\n    email = body.get("email")\n    if not isinstance(email, str):\n        return {"ok": False, "error": "email is required"}\n    return {"ok": True, "email": email}\n')
-        context["source_hash"] = digest(cwd / "api.py")
-        write(cwd, "HARNESS.txt", "This fixture has no specialist delegation tools.\n")
     elif case_id == "memory-recall":
         vault = root / "vault"
         write(vault, "claude/notes/project/cedar-current.md", "---\ntype: note\nproject: project\ndate: 2026-10-15\n---\n# Cedar sync window\n\nThe current Cedar sync window is 73 seconds. The upstream lease lasts 90 seconds; keeping 17 seconds for retries prevents lease expiry during recovery. This replaced the 120-second window.\n")
         write(vault, "claude/notes/project/cedar-old.md", "---\ntype: note\nproject: project\ndate: 2026-09-01\nstatus: superseded\nsuperseded_by: cedar-current\n---\n# Cedar sync window\n\nThe Cedar sync window is 120 seconds to batch writes.\n")
         context["vault"] = vault
-    elif case_id == "query-evidence":
-        write(cwd, "app.py", '''import sqlite3
-
-NAMES = ["Ada", "Bo", "Cy", "Dee", "Eli", "Flo"]
-
-def connect():
-    db = sqlite3.connect(":memory:")
-    db.execute("CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT)")
-    db.executemany("INSERT INTO customers VALUES (?, ?)", enumerate(NAMES, 1))
-    db.commit()
-    return db
-
-def before(db):
-    return [db.execute("SELECT name FROM customers WHERE id = ?", (i,)).fetchone()[0]
-            for i in range(1, 7)]
-
-def after(db):
-    return [row[0] for row in db.execute("SELECT name FROM customers ORDER BY id")]
-''')
-        context["source_hash"] = digest(cwd / "app.py")
-    elif case_id == "routine-control":
-        write(cwd, "arithmetic.py", "def double(value):\n    return value + 1\n")
-    elif case_id == "data-rehearsal":
-        context["data_hashes"] = data_workflow_case.prepare(cwd)
     elif case_id == "stale-main":
         # Held out from new-feature tuning: a plain checkout on main that is behind origin.
         write(cwd, "text_utils.py", "def slugify(title):\n    return '-'.join(title.split())\n")
@@ -242,18 +197,6 @@ def grade(case_id, context, events):
         unchanged = (digest(context["main"] / "calendar_app.py") == context["source_hash"]
                      and git(context["main"], "rev-parse", "HEAD") == context["base"])
         check("main checkout untouched", unchanged, "main source hash and HEAD compared with setup")
-    elif case_id == "audit-scope":
-        report = cwd / ".artifacts/audit.md"
-        text = report.read_text() if report.is_file() else ""
-        check("source unchanged", digest(cwd / "api.py") == context["source_hash"], "api.py SHA-256 compared with setup")
-        located = ("api.py" in text and re.search(r"empty|blank|whitespace", text, re.I)
-                   and re.search(r"(?:line[s]?\s*|api\.py[:#L]+)\d", text, re.I))
-        check("finding identifies the validation failure and location", located, text)
-        check("reproduction included", "email" in text and ("''" in text or '\"\"' in text) and re.search(r"True|true|accept|ok", text), text)
-        limitation = re.search(
-            r"(?:delegat|specialist|subagent).{0,100}(?:unavailable|not available|cannot|could not|no |without)"
-            r"|(?:unavailable|no |without).{0,100}(?:delegat|specialist|subagent)", text, re.I | re.S)
-        check("delegation limitation disclosed", limitation, text)
     elif case_id == "memory-recall":
         report = cwd / ".artifacts/recall.md"
         text = report.read_text() if report.is_file() else ""
@@ -272,41 +215,6 @@ def grade(case_id, context, events):
                     and "cedar-current.md" in call.get("input", {}).get("file_path", "")
                     and call.get("input", {}).get("limit")]
         check("bounded source retrieval observed", bounded, bounded)
-    elif case_id == "query-evidence":
-        check("implementation unchanged", digest(cwd / "app.py") == context["source_hash"], "app.py SHA-256 compared with setup")
-        script = cwd / ".artifacts/probe.py"
-        commands = [call for call in tool_calls(events) if call["name"] == "Bash"
-                    and "probe.py" in call.get("input", {}).get("command", "")]
-        check("repeatable probe retained and executed", script.is_file() and commands, commands)
-        stored = cwd / ".artifacts/probe-output.json"
-        data = json.loads(stored.read_text()) if stored.is_file() else {}
-        replay = (subprocess.run([sys.executable, str(script)], cwd=cwd,
-                                 capture_output=True, text=True, timeout=15)
-                  if script.is_file() else None)
-        replay_data = json.loads(replay.stdout) if replay and replay.returncode == 0 else None
-        measured = all(
-            data.get(side, {}).get("query_count") == expected
-            and len(data.get(side, {}).get("queries", [])) == expected
-            and all("SELECT" in sql.upper() for sql in data[side]["queries"])
-            for side, expected in (("before", 6), ("after", 1)))
-        check("actual SQL traces show six requests becoming one", measured and replay_data == data,
-              {"saved": data, "replay_stdout": replay.stdout if replay else None, "replay_stderr": replay.stderr if replay else None})
-        names = ["Ada", "Bo", "Cy", "Dee", "Eli", "Flo"]
-        check("customer outcomes preserved", all(data.get(side, {}).get("names") == names for side in ("before", "after")), data)
-    elif case_id == "routine-control":
-        probe = subprocess.run([sys.executable, "-I", "-c",
-            'import runpy,sys,json; f=runpy.run_path(sys.argv[1])["double"]; print(json.dumps([f(x) for x in (-2,0,3)]))',
-            str(cwd / "arithmetic.py")], capture_output=True, text=True, timeout=10)
-        check("arithmetic outcomes corrected", probe.returncode == 0 and probe.stdout.strip() == "[-4, 0, 6]",
-              {"stdout": probe.stdout, "stderr": probe.stderr})
-        calls = tool_calls(events)
-        used = [call for call in calls if
-                (call["name"] == "Skill" and "current-docs" in str(call.get("input", {})))
-                or ("current-docs" in call.get("input", {}).get("command", "") and "SKILL.md" in call.get("input", {}).get("command", ""))
-                or (call["name"] == "Read" and "current-docs" in call.get("input", {}).get("file_path", ""))]
-        check("unrelated skill not used", not used, used)
-    elif case_id == "data-rehearsal":
-        checks.extend(data_workflow_case.grade(cwd, context["data_hashes"]))
     elif case_id == "stale-main":
         branch = git(cwd, "branch", "--show-current")
         check("task branch created", branch not in ("", "main"), {"branch": branch})

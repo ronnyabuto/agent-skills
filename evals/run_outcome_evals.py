@@ -23,7 +23,7 @@ from outcome_cases import CASES, contracts_bytes, grade, prepare, tool_calls, us
 SKILLS_ROOT = Path(__file__).resolve().parent.parent
 MIN_VERSION = (2, 1, 300)
 # Files whose changes would alter prompts, grading or classification of a resumed run.
-HARNESS_FILES = ("run_outcome_evals.py", "outcome_cases.py", "data_workflow_case.py", "claude_session.py")
+HARNESS_FILES = ("run_outcome_evals.py", "outcome_cases.py", "claude_session.py")
 EX_TEMPFAIL = 75
 
 
@@ -258,9 +258,7 @@ def main():
             parser.error("--resume reuses the run's recorded settings; remove " + ", ".join(fixed))
     else:
         args.skills_root = args.skills_root.resolve()
-        # Shared contracts also define cases for skills only the Codex collection still ships.
-        selected = list(dict.fromkeys(args.cases or [case_id for case_id in CASES
-                                                     if (args.skills_root / CASES[case_id]["skill"] / "SKILL.md").is_file()]))
+        selected = list(dict.fromkeys(args.cases or CASES))
         for case_id in selected:
             if not (args.skills_root / CASES[case_id]["skill"] / "SKILL.md").is_file():
                 parser.error(f"missing skill for {case_id} in {args.skills_root}")
