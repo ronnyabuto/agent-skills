@@ -10,10 +10,12 @@ import unittest
 
 from claude_session import limit_signal
 import outcome_cases
+import skill_value_cases
 from outcome_cases import CASES, grade, prepare
 
 
 RUNNER = Path(__file__).with_name("run_outcome_evals.py")
+REFERENCES = Path(__file__).parent / "fixtures/graders"
 CLAUDE = '''#!/usr/bin/env python3
 import json, os, pathlib, subprocess, sys
 if "--version" in sys.argv:
@@ -63,6 +65,12 @@ elif case == "query-evidence":
     result = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, check=True)
     pathlib.Path(".artifacts/probe-output.json").write_text(result.stdout)
     call("Bash", command="python3 .artifacts/probe.py")
+elif os.environ.get("REFERENCES") and pathlib.Path(os.environ["REFERENCES"], "skill_value_references.py").is_file():
+    sys.path.insert(0, os.environ["REFERENCES"])
+    import skill_value_references
+    if case in ("readability-cleanup", "pinned-client", "delegated-audit", "project-health", "cli-startup"):
+        for event in skill_value_references.answer(case, pathlib.Path.cwd()):
+            print(json.dumps(event))
 if mode == "fail":
     if case == "audit-scope":
         pathlib.Path("api.py").write_text("# unauthorized fix")
@@ -86,7 +94,7 @@ class OutcomeRunnerTest(unittest.TestCase):
         (binary / "claude").write_text(CLAUDE)
         (binary / "claude").chmod(0o755)
         self.env = dict(os.environ, PATH=f"{binary}{os.pathsep}{os.environ['PATH']}",
-                        CALL_LOG=str(self.root / "calls.jsonl"))
+                        CALL_LOG=str(self.root / "calls.jsonl"), REFERENCES=str(REFERENCES))
 
     def run_evals(self, *args, outcomes=None):
         env = dict(self.env, FAKE_OUTCOMES=json.dumps(outcomes or {}))
@@ -137,10 +145,15 @@ class OutcomeRunnerTest(unittest.TestCase):
             self.assertIn("**/AGENTS.md", settings["claudeMdExcludes"])
             enabled = [name for name, value in settings["skillOverrides"].items() if value == "on"]
             self.assertEqual(len(enabled), 1 if call["arm"] == "enabled" else 0)
-            self.assertEqual(settings["skillOverrides"]["no-ai-tells-audit"], "off")
+            case = Path(call["cwd"]).parent.parent.name
+            others = {name: value for name, value in settings["skillOverrides"].items() if name != CASES[case]["skill"]}
+            self.assertIn("no-ai-tells-audit", settings["skillOverrides"])
+            self.assertEqual(set(others.values()), {"off"})
             self.assertEqual(args[args.index("--setting-sources") + 1], "project")
             self.assertIn("--strict-mcp-config", args)
             self.assertNotIn("--dangerously-skip-permissions", args)
+            approved = args[args.index("--allowedTools") + 1:]
+            self.assertIn("Bash", approved, "prefix-only Bash rules deny loops and pipes in both arms")
             self.assertTrue(Path(call["cwd"]).is_dir())
         for record in cases:
             artifacts = Path(record["artifacts"])
@@ -250,6 +263,47 @@ class OutcomeRunnerTest(unittest.TestCase):
             self.assertEqual(call["effort"], "medium")
             self.assertEqual(call["args"][call["args"].index("--model") + 1], "claude-opus-5-5")
             self.assertEqual(call["args"][call["args"].index("--effort") + 1], "medium")
+
+    def test_runs_repeat_fresh_pairs_and_count_passes_per_case(self):
+        proc, records = self.run_evals("--case", "routine-control", "--case", "delegated-audit", "--runs", "3",
+                                       outcomes={"routine-control:enabled": "contaminated"})
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        arms = [r for r in records if r["type"] == "case"]
+        self.assertEqual(sorted((r["case"], r["run"], r["arm"]) for r in arms),
+                         sorted((c, n, a) for c in ("routine-control", "delegated-audit") for n in (1, 2, 3)
+                                for a in ("enabled", "disabled")))
+        self.assertEqual(len({r["artifacts"] for r in arms}), 12)
+        self.assertEqual(records[0]["runs"], 3)
+        summary = records[-1]
+        self.assertEqual(summary["comparable_pairs"], 6)
+        self.assertEqual(summary["per_case"]["routine-control"],
+                         {"comparable_runs": 3, "enabled_passes": 0, "disabled_passes": 3})
+        self.assertEqual(summary["per_case"]["delegated-audit"],
+                         {"comparable_runs": 3, "enabled_passes": 3, "disabled_passes": 3})
+        first = [(r["case"], r["arm"]) for r in arms if r["run"] == 1][:1]
+        second = [(r["case"], r["arm"]) for r in arms if r["run"] == 2][:1]
+        self.assertNotEqual(first, second, "arm order alternates between rounds")
+        delegated = [json.loads(line) for line in (self.root / "calls.jsonl").read_text().splitlines()
+                     if "delegated-audit" in line]
+        for call in delegated:
+            args = call["args"]
+            self.assertIn("Agent", args[args.index("--tools") + 1].split(","))
+
+    def test_resume_completes_a_limited_repetition(self):
+        proc, records = self.run_evals("--case", "routine-control", "--runs", "2",
+                                       outcomes={"routine-control:disabled": "limit"})
+        self.assertEqual(proc.returncode, 75, proc.stderr)
+        proc, records = self.run_evals("--resume", str(self.root / "run"), "--runs", "3")
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("--runs", proc.stderr)
+        self.env["FAKE_OUTCOMES"] = "{}"
+        proc, records = self.run_evals("--resume", str(self.root / "run"))
+        self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
+        resume = next(r for r in records if r["type"] == "resume")
+        self.assertEqual(resume["pending"], ["routine-control:disabled", "routine-control:disabled-2",
+                                             "routine-control:enabled-2"])
+        self.assertEqual(records[-1]["comparable_pairs"], 2)
+        self.assertTrue((self.root / "run/routine-control/disabled.limited-1").is_dir())
 
     def test_grader_rejects_claimed_query_reduction_without_matching_replay(self):
         context = prepare("query-evidence", self.root)
@@ -484,6 +538,125 @@ class GraderNearMissTest(unittest.TestCase):
                 Path(directory, name).write_text(json.dumps({"same": {}}))
             with self.assertRaisesRegex(ValueError, "redefines"):
                 outcome_cases.load_contracts(Path(directory))
+
+
+class SkillValueNearMissTest(unittest.TestCase):
+    """New skill-value cases: the reference passes, and each plausible miss fails only its own checks."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="skill-value-tests-")
+        self.addCleanup(self.temp.cleanup)
+        self.count = 0
+        sys.path.insert(0, str(REFERENCES))
+        self.addCleanup(sys.path.remove, str(REFERENCES))
+        import skill_value_references
+        self.reference = skill_value_references
+
+    def failures(self, case_id, miss=None):
+        self.count += 1
+        root = Path(self.temp.name) / str(self.count)
+        root.mkdir()
+        context = prepare(case_id, root)
+        events = self.reference.answer(case_id, context["cwd"])
+        if miss:
+            replaced = miss(context["cwd"], events)
+            events = events if replaced is None else replaced
+        return failing(grade(case_id, context, events))
+
+    def assertMisses(self, case_id, misses):
+        self.assertEqual(self.failures(case_id), set(), "the reference answer must pass")
+        for label, (miss, expected) in misses.items():
+            with self.subTest(case=case_id, miss=label):
+                self.assertEqual(self.failures(case_id, miss), set(expected))
+
+    @staticmethod
+    def edit(name, old, new):
+        def run(cwd, events):
+            path = cwd / name
+            assert old in path.read_text(), (name, old)
+            path.write_text(path.read_text().replace(old, new))
+        return run
+
+    @staticmethod
+    def edit_json(name, change):
+        def run(cwd, events):
+            path = cwd / ".artifacts" / name
+            data = json.loads(path.read_text())
+            change(data)
+            path.write_text(json.dumps(data))
+        return run
+
+    def test_readability_cleanup(self):
+        guard = '    if weight_grams <= 0:\n        raise ValueError("weight must be positive")\n'
+        self.assertMisses("readability-cleanup", {
+            "duplicate-looking guard removed": (self.edit("shipping/rates.py", guard, ""),
+                                                ["guard needed by the unvalidated batch caller kept"]),
+            "narration left in place": (lambda cwd, e: (cwd / "shipping/rates.py").write_text(
+                skill_value_cases.RATES), ["narration and restating comments removed"]),
+            "workaround reason dropped": (self.edit("shipping/carrier.py",
+                                                    "    # The carrier API pads zone codes with trailing spaces (carrier ticket CR-4471);\n"
+                                                    "    # keep stripping until their v3 endpoint ships.\n", ""),
+                                          ["constraint comments kept"]),
+            "surcharge changed while tidying": (self.edit("shipping/rates.py", "= 125", "= 150"),
+                                                ["rates and zone parsing unchanged"]),
+        })
+
+    def test_pinned_client(self):
+        latest_docs = ('def open_total_cents(client, customer_id):\n    return sum(i.amount_cents for i in '
+                       'client.invoices.list(customer=customer_id, status="open"))\n')
+        self.assertMisses("pinned-client", {
+            "written against the 2.1 docs": (lambda cwd, e: (cwd / "billing.py").write_text(latest_docs),
+                                             ["works with the installed 1.4.2 client", "every page summed in exact cents"]),
+            "first page only": (self.edit("billing.py", 'page = result["next_page"]', "page = None"),
+                                ["every page summed in exact cents"]),
+            "float cents": (lambda cwd, e: (cwd / "billing.py").write_text(
+                (cwd / "billing.py").read_text().replace("Decimal(0)", "0.0").replace('Decimal(item["amount"])',
+                                                                                        'float(item["amount"])')),
+                            ["every page summed in exact cents"]),
+            "dependency upgraded": (self.edit("requirements.lock", "1.4.2", "2.1.0"),
+                                    ["dependencies and installed client unchanged"]),
+        })
+
+    def test_delegated_audit(self):
+        def decoy(data):
+            data.append({"file": "service/search.py", "line": 8, "title": "ORDER BY injection",
+                         "severity": "High", "evidence": "f-string"})
+        self.assertMisses("delegated-audit", {
+            "allow-listed sort reported": (self.edit_json("findings.json", decoy),
+                                           ["allow-listed sort column not reported"]),
+            "pagination missed": (self.edit_json("findings.json", lambda data: data.pop()),
+                                  ["pagination offset defect located"]),
+            "audited alone": (lambda cwd, events: [], ["specialists dispatched"]),
+            "source fixed": (self.edit("service/pages.py", "page * size", "(page - 1) * size"),
+                             ["source unchanged"]),
+        })
+
+    def test_project_health(self):
+        def downgrade(data):
+            data["findings"][0]["severity"] = "Medium"
+        def md5(data):
+            data["findings"].append({"severity": "High", "file": "shop/report.py", "line": 7,
+                                     "scenario": "MD5 is broken", "fix": "Use SHA-256"})
+        def unobserved(data):
+            data["test_run"] = {"command": None, "passed": None, "failed": None}
+        self.assertMisses("project-health", {
+            "secret underrated": (self.edit_json("audit.json", downgrade), ["committed secret rated critical or high"]),
+            "cache key escalated": (self.edit_json("audit.json", md5), ["non-security MD5 cache key not escalated"]),
+            "tests not run": (self.edit_json("audit.json", unobserved), ["test suite run and reported accurately"]),
+            "dependency missed": (self.edit_json("audit.json", lambda data: data["findings"].pop(2)),
+                                  ["vulnerable PyYAML pin reported"]),
+        })
+
+    def test_cli_startup(self):
+        def guess(data):
+            data["median_seconds"] = 0.03
+        def wrong_line(data):
+            data["findings"][0]["line"] = 1
+        self.assertMisses("cli-startup", {
+            "guessed number": (self.edit_json("speed.json", guess), ["reported median matches a re-measurement"]),
+            "cause not located": (self.edit_json("speed.json", wrong_line), ["eager import chain located"]),
+            "never ran the command": (lambda cwd, events: [], ["startup executed rather than estimated"]),
+        })
 
 
 class LimitSignalTest(unittest.TestCase):

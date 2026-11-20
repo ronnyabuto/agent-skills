@@ -55,6 +55,11 @@ python3 evals/run_outcome_evals.py --model sonnet --case memory-recall --max-bud
 python3 evals/run_outcome_evals.py --model sonnet --output /tmp/my-skill-outcomes
 ```
 
+`--runs N` repeats every selected case as N separate fresh pairs, in rounds, with arm
+order alternating between rounds. `summary.json` adds `per_case` pass counts for each arm.
+One run per arm cannot separate a tie from noise; use at least three before removing or
+keeping a skill on the result. `--resume` keeps the run's recorded `--runs`.
+
 For a reproducible Opus 5.5 comparison, select the exact model and effort:
 
 ```bash
@@ -72,7 +77,7 @@ The existing default model remains `sonnet`; `--model` selects the paired model,
 and the trigger runner takes the model as its positional argument. Compare both
 arms at the same explicit model and effort. Live commands consume model usage.
 
-Omit `--case` for all seven cases; repeat it to select several. Each case runs
+Omit `--case` for all twelve cases; repeat it to select several. Each case runs
 sequentially in two fresh sessions with identical synthetic starting state and
 prompt. The selected skill is frozen once under `candidates/`, copied to project scope
 in both workspaces and
@@ -100,6 +105,11 @@ is claimed by the offline stand-in tests.
 | `data-rehearsal` | Use the approved local job; expose a normalization collision hidden by sanitization; preserve the candidate and workflow; report failed readiness without attempting export or deployment. |
 | `routine-control` | Correct simple arithmetic without invoking the unrelated current-docs skill. |
 | `design-sizing` | Leave source unchanged; neither list nor recommend infrastructure (broker, cache, cluster, shard, separate service) that about 2,000 emails a day doesn't need; state a peak or burst rate that is plausible (0.001–5/s after unit conversion, so neither an average nor the relay's given 30/s counts); guard retries against duplicate sends; time out external calls; state a rollback path. |
+| `readability-cleanup` | Remove narration and restating comments; keep the fuel-surcharge and carrier-workaround reasons; keep the weight guard that `batch.py` needs although `api.py` repeats it; leave rates unchanged. |
+| `pinned-client` | Use the installed acme-billing 1.4.2 API rather than the bundled 2.1 docs; follow every page; sum decimal amounts in exact cents; leave dependencies unchanged. |
+| `delegated-audit` | Dispatch specialists; locate the missing ownership check, the LIKE injection and the 1-based page offset; don't report the allow-listed ORDER BY; leave source unchanged. Adds the Agent tool to both arms. |
+| `project-health` | Rate the committed secret Critical or High; locate the refund overrun and the PyYAML 5.3 pin; run the tests and report 2 passed, 1 failed; don't escalate a non-security MD5 cache key; leave source unchanged. |
+| `cli-startup` | Execute the command; report a median within 0.6–1.6× of the grader's own five-run median; locate the eager import chain; leave source unchanged. |
 
 The output defaults to a new private `/tmp/skill-outcomes-<timestamp>/` directory.
 An explicit `--output` must be new and outside Git worktrees to avoid inheriting
@@ -112,7 +122,7 @@ project instructions. Keep it until review is finished. It contains:
   difference, elapsed time, main-loop token totals and reported costs. Raw
   `usage` and `modelUsage` are
   retained per arm, including the resolved model information the CLI reports.
-- `<case>/<arm>/`: synthetic project, selected skill snapshot, local origin or
+- `<case>/<arm>/` (and `<arm>-<n>/` for later runs): synthetic project, selected skill snapshot, local origin or
   vault when applicable, request, `session.jsonl`, stderr and `grading.json`.
   Grading evidence includes the checked state, artifact contents and replay
   output. Worktree metadata remains valid because the workspace stays in place.
@@ -169,10 +179,10 @@ question warrants the additional usage.
 
 The paired runner disables hooks, auto memory, bundled skills and user/local
 settings sources; it loads no external MCP servers or browser integration. It
-restricts built-in tools to local reading, editing, shell and Skill use, with
-explicit command approvals and no permission bypass. This measures a direct
-single-session workflow; `managed-audit` is deliberately tested with delegation
-unavailable, not with fabricated specialists. Some reserved built-in skills can still appear in the CLI listing; the runner
+restricts built-in tools to local reading, editing, shell and Skill use (plus Agent
+where a case lists it), without a permission bypass. Shell commands are approved
+without prompting: command-prefix rules denied ordinary loops, pipes and heredocs
+in both arms and scored that noise as model failures. Some reserved built-in skills can still appear in the CLI listing; the runner
 records the loaded skills/plugins and checks that the selected skill is visible
 only in the enabled arm. CLI/system policy and any remaining client context
 can still affect results. The fixture directory is
