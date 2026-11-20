@@ -76,7 +76,7 @@ The searchable index also contains private text: keep `~/.cache/vault-memory/`
 `AGENT_VAULT` setting, safely move `claude/` archives and notes, restart Claude,
 and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
-## Evaluation and provenance
+## Evaluation
 
 The collection retains 18 trigger scenarios across 4 skills and runs five
 paired outcome cases, two of them held out. Trigger evaluations measure discovery; outcome evaluations
@@ -103,9 +103,6 @@ missing costs stay unknown. A baseline that passes is a valid result. The existi
 trigger runner still evaluates installed skills and writes metadata to
 `.artifacts/trigger-evals-*.jsonl` without copying full transcripts.
 
-This collection began with `new-feature`, `evidence-driven-testing` and a
-since-removed `code-structure` skill from
-[michaelshimeles/skills](https://github.com/michaelshimeles/skills).
-Their procedures have been modified here; the inherited `evidence.py` recorder
-now includes local capability-detection corrections. The other skills were authored locally.
-Attribution records provenance, not a new license grant.
+The screen recorder in `evidence-driven-testing/scripts/evidence.py` comes from
+[michaelshimeles/skills](https://github.com/michaelshimeles/skills), with local
+capability-detection fixes.
