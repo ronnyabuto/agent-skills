@@ -25,8 +25,7 @@ The [skills reference](https://code.claude.com/docs/en/skills) documents optiona
 Claude frontmatter such as invocation control, tool permissions and forked
 execution. This collection keeps ordinary coding skills automatically
 discoverable. Optional fields are added only when the workflow needs them.
-For example, `context: fork` would remove a managed audit from the main
-conversation where its coordination belongs. `allowed-tools` pre-approves
+`allowed-tools` pre-approves
 permissions; it does not establish a read-only sandbox.
 
 Vault archiving stays in settings-level hooks. Skill-scoped hooks register only
@@ -39,7 +38,6 @@ does not require rerunning it or changing global configuration.
 | Existing workflow | What this collection adds |
 |---|---|
 | `/run`, `/verify`, project launch skills | `evidence-driven-testing` reuses their launch recipes and completed checks, then retains assertions, measurements or captures needed to substantiate the claim. |
-| `/code-review` | `project-audit` covers the requested project health scope; `managed-audit` coordinates specialists only when explicitly requested. Do not repeat a review that already answers the question. |
 | Built-in auto memory | `vault-memory` provides an explicit local Markdown archive and keyword search across sessions and decision notes. It requires its own hooks and privacy configuration. |
 
 See the [bundled skills documentation](https://code.claude.com/docs/en/skills#bundled-skills)

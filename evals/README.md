@@ -23,13 +23,13 @@ model calls and do not claim that Claude follows the skills.
 
 ## Trigger evaluations
 
-`*.json` contains 39 scenarios across 9 skills. The first expectation's
+`*.json` contains 20 scenarios across 4 skills. The first expectation's
 `Invokes` or `Does not invoke` prefix determines the score; behavioral-only
 cases are skipped. Subsequent expectations remain useful for transcript review.
 
 ```bash
 bash evals/build_fixture.sh /tmp/skill-evals
-python3 evals/run_trigger_evals.py /tmp/skill-evals sonnet managed-audit --max-budget-usd 0.50
+python3 evals/run_trigger_evals.py /tmp/skill-evals sonnet system-design --max-budget-usd 0.50
 ```
 
 This runner evaluates **installed** skills with the user's normal configuration.
@@ -63,7 +63,7 @@ keeping a skill on the result. `--resume` keeps the run's recorded `--runs`.
 For a reproducible Opus 5.5 comparison, select the exact model and effort:
 
 ```bash
-python3 evals/run_outcome_evals.py --model claude-opus-5-5 --effort medium --case routine-control
+python3 evals/run_outcome_evals.py --model claude-opus-5-5 --effort medium --case design-sizing
 ```
 
 Both runners accept optional `--effort low|medium|high|xhigh|max`. When supplied,
@@ -77,7 +77,9 @@ The existing default model remains `sonnet`; `--model` selects the paired model,
 and the trigger runner takes the model as its positional argument. Compare both
 arms at the same explicit model and effort. Live commands consume model usage.
 
-Omit `--case` for all twelve cases; repeat it to select several. Each case runs
+Omit `--case` for every case whose skill this collection ships; repeat it to select
+several. `audit-scope` and `routine-control` stay in the shared contracts for the
+Codex collection's `managed-audit` and `current-docs`. Each case runs
 sequentially in two fresh sessions with identical synthetic starting state and
 prompt. The selected skill is frozen once under `candidates/`, copied to project scope
 in both workspaces and
@@ -99,17 +101,14 @@ is claimed by the offline stand-in tests.
 | Case | Observable checks |
 |---|---|
 | `assigned-worktree` | Keep the assigned branch/worktree, fetch the local origin, retain the current base, correct calendar results and leave the main checkout untouched. |
-| `audit-scope` | Leave source unchanged, identify the actual validation failure with a location and reproduction, and disclose unavailable delegation. |
+| `audit-scope` (Codex only) | Leave source unchanged, identify the actual validation failure with a location and reproduction, and disclose unavailable delegation. |
 | `memory-recall` | Retrieve the current decision and constraint, cite its dated source, avoid adopting superseded advice and use bounded retrieval. |
 | `query-evidence` | Preserve the implementation, retain and execute a replayable probe, show actual SQL traces reducing six queries to one, and preserve all six customer names. |
 | `data-rehearsal` | Use the approved local job; expose a normalization collision hidden by sanitization; preserve the candidate and workflow; report failed readiness without attempting export or deployment. |
-| `routine-control` | Correct simple arithmetic without invoking the unrelated current-docs skill. |
+| `routine-control` (Codex only) | Correct simple arithmetic without invoking the unrelated current-docs skill. |
 | `design-sizing` | Leave source unchanged; neither list nor recommend infrastructure (broker, cache, cluster, shard, separate service) that about 2,000 emails a day doesn't need; state a peak or burst rate that is plausible (0.001–5/s after unit conversion, so neither an average nor the relay's given 30/s counts); guard retries against duplicate sends; time out external calls; state a rollback path. |
-| `readability-cleanup` | Remove narration and restating comments; keep the fuel-surcharge and carrier-workaround reasons; keep the weight guard that `batch.py` needs although `api.py` repeats it; leave rates unchanged. |
-| `pinned-client` | Use the installed acme-billing 1.4.2 API rather than the bundled 2.1 docs; follow every page; sum decimal amounts in exact cents; leave dependencies unchanged. |
-| `delegated-audit` | Dispatch specialists; locate the missing ownership check, the LIKE injection and the 1-based page offset; don't report the allow-listed ORDER BY; leave source unchanged. Adds the Agent tool to both arms. |
-| `project-health` | Rate the committed secret Critical or High; locate the refund overrun and the PyYAML 5.3 pin; run the tests and report 2 passed, 1 failed; don't escalate a non-security MD5 cache key; leave source unchanged. |
-| `cli-startup` | Execute the command; report a median within 0.6–1.6× of the grader's own five-run median; locate the eager import chain; leave source unchanged. |
+| `stale-main` | Held out for `new-feature`: on a checkout whose main is behind origin, fix the bug on a task branch that contains the fetched origin/main, doesn't track main, and leaves local main where it was. |
+| `tracking-design` | Held out for `system-design`: the `design-sizing` rubric applied to keeping shipment statuses current from a carrier API (20 requests/s limit, webhooks available). |
 
 The output defaults to a new private `/tmp/skill-outcomes-<timestamp>/` directory.
 An explicit `--output` must be new and outside Git worktrees to avoid inheriting
@@ -179,8 +178,7 @@ question warrants the additional usage.
 
 The paired runner disables hooks, auto memory, bundled skills and user/local
 settings sources; it loads no external MCP servers or browser integration. It
-restricts built-in tools to local reading, editing, shell and Skill use (plus Agent
-where a case lists it), without a permission bypass. Shell commands are approved
+restricts built-in tools to local reading, editing, shell and Skill use, without a permission bypass. Shell commands are approved
 without prompting: command-prefix rules denied ordinary loops, pipes and heredocs
 in both arms and scored that noise as model failures. Some reserved built-in skills can still appear in the CLI listing; the runner
 records the loaded skills/plugins and checks that the selected skill is visible
@@ -202,7 +200,8 @@ when its evidence is no longer needed.
 `outcome_contracts.json` separates natural user requests from serialization-only
 deliverables and hidden check names.
 It is shared with the Codex collection; `outcome_contracts.claude.json` holds
-cases for skills only this collection has (`system-design`). The runner merges both,
+cases only this collection runs: `design-sizing`, and the held-out `stale-main` and
+`tracking-design`. The runner merges both,
 rejects duplicate case names, and saves and hashes the merged definitions.
 The sibling check compares only the shared file. Only the request and deliverable reach the
 agent. No prompt tells it to fetch origin, disclose missing delegation, reject
@@ -226,7 +225,7 @@ trimmed-skill arms passed, at similar cost per session. Two pairs is a small
 sample. Each grader fix made after a run came from a false flag found by
 reading the artifact; the excerpts are retained as regression tests.
 
-`routine-control` asks for a standard-library-free arithmetic correction with
+In the Codex collection, `routine-control` asks for a standard-library-free arithmetic correction with
 `current-docs` available. It checks correct results and absence of unrelated
 skill use. Both arms should pass; it detects unnecessary activation.
 

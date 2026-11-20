@@ -8,12 +8,9 @@ actual uncertainty. Do not require the entire collection for every edit.
 |---|---|
 | Fresh implementation | `new-feature` once; preserve existing work and verify the base |
 | Established local fix | Inspect the owner and callers, fix it, run the affected check |
-| Uncertain version-specific integration | `current-docs` |
 | Design or capacity plan for a new service or integration | `system-design` |
 | Requested proof, test design or measured improvement | `evidence-driven-testing`; choose the relevant reference |
 | Previous decision needed | `vault-memory`; search distinctive terms, then read matching lines |
-| Requested audit | The audit matching the scope; `managed-audit` only for requested coordination |
-| Requested repository-wide readability cleanup | `no-ai-tells-audit` |
 
 Do not repeat a successful launch, review or verification pass unless something
 changed or a remaining risk requires it. Read referenced skills and documents

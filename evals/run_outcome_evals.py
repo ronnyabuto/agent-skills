@@ -23,8 +23,7 @@ from outcome_cases import CASES, contracts_bytes, grade, prepare, tool_calls, us
 SKILLS_ROOT = Path(__file__).resolve().parent.parent
 MIN_VERSION = (2, 1, 300)
 # Files whose changes would alter prompts, grading or classification of a resumed run.
-HARNESS_FILES = ("run_outcome_evals.py", "outcome_cases.py", "data_workflow_case.py", "skill_value_cases.py",
-                 "claude_session.py")
+HARNESS_FILES = ("run_outcome_evals.py", "outcome_cases.py", "data_workflow_case.py", "claude_session.py")
 EX_TEMPFAIL = 75
 
 
@@ -36,7 +35,7 @@ def snapshot_hash(root):
     return digest.hexdigest()
 
 
-def session_command(args, query, settings, extra_tools=()):
+def session_command(args, query, settings):
     command = [
         "claude", "-p", query, "--model", args.model,
         "--max-turns", str(args.max_turns), "--max-budget-usd", str(args.max_budget_usd),
@@ -44,10 +43,10 @@ def session_command(args, query, settings, extra_tools=()):
         "--setting-sources", "project", "--settings", json.dumps(settings),
         "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--no-chrome",
         "--permission-mode", "default", "--permission-prompts", "none",
-        "--tools", ",".join(["Read", "Write", "Edit", "Glob", "Grep", "Bash", "Skill", *extra_tools]),
+        "--tools", "Read,Write,Edit,Glob,Grep,Bash,Skill",
         # Plain Bash: python3 already runs arbitrary code, and prefix rules denied ordinary loops,
         # pipes and heredocs in both arms, which scored permission noise as model failures.
-        "--allowedTools", "Read", "Write", "Edit", "Glob", "Grep", "Skill", "Bash", *extra_tools,
+        "--allowedTools", "Read", "Write", "Edit", "Glob", "Grep", "Skill", "Bash",
     ]
     if args.effort is not None:
         command += ["--effort", args.effort]
@@ -78,7 +77,7 @@ def run_arm(case_id, run, arm, args, destination):
                 "XDG_CACHE_HOME": str(destination / "cache")},
     }
     settings["skillOverrides"][skill] = "on" if arm == "enabled" else "off"
-    command = session_command(args, user_prompt(case_id), settings, case.get("tools", ()))
+    command = session_command(args, user_prompt(case_id), settings)
     (destination / "request.json").write_text(json.dumps({"query": user_prompt(case_id), "command": command}, indent=2) + "\n")
     env = dict(os.environ, **settings["env"])
     if args.effort is not None:
@@ -249,7 +248,9 @@ def main():
             parser.error("--resume reuses the run's recorded settings; remove " + ", ".join(fixed))
     else:
         args.skills_root = args.skills_root.resolve()
-        selected = list(dict.fromkeys(args.cases or CASES))
+        # Shared contracts also define cases for skills only the Codex collection still ships.
+        selected = list(dict.fromkeys(args.cases or [case_id for case_id in CASES
+                                                     if (args.skills_root / CASES[case_id]["skill"] / "SKILL.md").is_file()]))
         for case_id in selected:
             if not (args.skills_root / CASES[case_id]["skill"] / "SKILL.md").is_file():
                 parser.error(f"missing skill for {case_id} in {args.skills_root}")

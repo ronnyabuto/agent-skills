@@ -1,8 +1,8 @@
 # agent-skills
 
-Nine on-demand [Agent Skills](https://agentskills.io) for Claude Code: task
-setup, version-specific docs checks, load-sized system design, audits, evidence
-capture, and local vault memory. This repository contains `SKILL.md`
+Four on-demand [Agent Skills](https://agentskills.io) for Claude Code: task
+setup, load-sized system design, evidence capture, and local vault memory. Each
+one kept its place by beating a no-skill baseline in paired runs. This repository contains `SKILL.md`
 procedures, supporting references, helper scripts, an installer, and eval
 fixtures. It is the Claude Code collection; the separate Codex package and
 installation are maintained separately.
@@ -16,17 +16,15 @@ guide; installation does not add it to standing instructions.
 | Skill | Use |
 |---|---|
 | [new-feature](new-feature/SKILL.md) | Start task branches; isolate workspaces when needed |
-| [current-docs](current-docs/SKILL.md) | Verify uncertain integrations against version-specific official docs |
 | [system-design](system-design/SKILL.md) | Design a service or integration sized to its estimated load |
 | [evidence-driven-testing](evidence-driven-testing/SKILL.md) | Capture recordings, screenshots, or measured proof |
-| [project-audit](project-audit/SKILL.md) | Report prioritized codebase health findings |
-| [ux-speed-audit](ux-speed-audit/SKILL.md) | Measure loading and interaction responsiveness |
-| [managed-audit](managed-audit/SKILL.md) | Coordinate explicitly requested specialist or station audits |
-| [no-ai-tells-audit](no-ai-tells-audit/SKILL.md) | Remediate readability problems across existing source |
 | [vault-memory](vault-memory/SKILL.md) | Archive sessions and recall relevant Markdown notes |
 
-Audit findings do not by themselves authorize changes. Concurrent source writers need separate
-worktrees; performance measurements need a quiet machine.
+Five earlier skills (`current-docs`, `project-audit`, `ux-speed-audit`, `managed-audit`,
+`no-ai-tells-audit`) were removed on 2026-11-20: Opus 5.5 matched them without the
+skill in three paired runs each. Git history keeps them; the Codex collection still
+ships its own copies. Concurrent source writers need separate worktrees;
+performance measurements need a quiet machine.
 
 For production-derived test data, migration rehearsal and release checks, see
 [project-owned data workflows](evidence-driven-testing/references/data-workflows.md).
@@ -91,7 +89,7 @@ and rebuild with `node vault-memory/scripts/vault.mjs index --rebuild`.
 
 ## Evaluation and provenance
 
-The collection retains 39 trigger scenarios across 9 skills and includes twelve
+The collection retains 20 trigger scenarios across 4 skills and runs seven
 paired outcome cases. Trigger evaluations measure discovery; outcome evaluations
 compare fresh enabled/disabled sessions and grade actual files, returned data,
 retrieved decisions and retained evidence. Neither establishes complete model
@@ -120,6 +118,5 @@ This collection began with `new-feature`, `evidence-driven-testing` and a
 since-removed `code-structure` skill from
 [michaelshimeles/skills](https://github.com/michaelshimeles/skills).
 Their procedures have been modified here; the inherited `evidence.py` recorder
-now includes local capability-detection corrections. The other skills were authored locally;
-`managed-audit` adapts the separate Codex skill for documented Claude Code
-capabilities. Attribution records provenance, not a new license grant.
+now includes local capability-detection corrections. The other skills were authored locally.
+Attribution records provenance, not a new license grant.
