@@ -54,6 +54,13 @@ elif case == "data-rehearsal":
         result = subprocess.run([sys.executable, "workflow.py", "rehearse", "--profile", profile], capture_output=True, text=True)
         results.append(json.loads(result.stdout))
     pathlib.Path(".artifacts/rehearsal.json").write_text(json.dumps(dict(ready_for_release=False, deployment_performed=False, results=results)))
+elif case == "stale-main":
+    for command in (["git", "fetch", "-q", "origin"], ["git", "switch", "-q", "--no-track", "-c", "agent/slug", "origin/main"]):
+        subprocess.run(command, check=True, capture_output=True)
+    pathlib.Path("text_utils.py").write_text("def slugify(title):\\n    return '-'.join(title.lower().split())\\n")
+elif case == "tracking-design":
+    pathlib.Path(".artifacts/design.md").write_text("About 1,200 status changes a day; peak about 2 webhooks per minute. Each webhook upserts by (shipment_id, event_id), so retried deliveries are idempotent and duplicates are ignored. Carrier API calls use a 5 s timeout. Roll back by disabling the webhook and returning to manual refresh.")
+    pathlib.Path(".artifacts/components.json").write_text(json.dumps([{"name": "carrier_webhook endpoint", "purpose": "receive status events"}]))
 elif case == "design-sizing":
     pathlib.Path(".artifacts/design.md").write_text("About 2,000 status emails a day; peak about 0.3 emails per minute. Send from an outbox table with retry and backoff; a unique (order_id, status) key prevents duplicates. SMTP calls use a 10 s timeout. Roll back by disabling the sender.")
     pathlib.Path(".artifacts/components.json").write_text(json.dumps([{"name": "email_outbox table", "purpose": "durable send state"}]))
@@ -77,7 +84,7 @@ if mode == "fail":
     elif case == "query-evidence":
         pathlib.Path(".artifacts/probe-output.json").write_text("invalid JSON")
 if mode == "file-read":
-    call("Read", file_path=str(pathlib.Path.cwd() / ".claude/skills" / skill / "SKILL.md"), limit=10)
+    call("Read", file_path=str(pathlib.Path.cwd().parents[2] / "candidates" / skill / "SKILL.md"), limit=10)
 if mode == "contaminated":
     call("Skill", skill=skill)
 print(json.dumps(dict(type="result", subtype="success" if mode != "error" else "error_max_budget_usd", is_error=mode == "error", num_turns=3, total_cost_usd=None if mode == "missing-cost" else 0.1, usage={"input_tokens":100}, modelUsage={"fake-model":{"costUSD":0.1}}, session_id="fake-session")))
@@ -208,6 +215,23 @@ class OutcomeRunnerTest(unittest.TestCase):
         entry = Path(disabled["artifacts"]) / "project/.claude/skills/managed-audit/SKILL.md"
         self.assertFalse(entry.exists())
         self.assertEqual(records[-1]["comparable_pairs"], 0)
+
+    def test_naming_the_deleted_entrypoint_is_not_a_read(self):
+        # A real baseline ran `cat .claude/skills/vault-memory/SKILL.md 2>/dev/null` in the disabled arm.
+        from run_outcome_evals import skill_entry_referenced
+        with tempfile.TemporaryDirectory() as directory:
+            cwd = Path(directory, "project")
+            (cwd / ".claude/skills/vault-memory").mkdir(parents=True)
+            frozen = Path(directory, "candidates/vault-memory")
+            frozen.mkdir(parents=True)
+            (frozen / "SKILL.md").write_text("instructions")
+            bash = lambda command: {"name": "Bash", "input": {"command": command}}
+            self.assertFalse(skill_entry_referenced(
+                bash("cat .claude/skills/vault-memory/SKILL.md 2>/dev/null | head -60"), "vault-memory", cwd))
+            self.assertTrue(skill_entry_referenced(
+                bash("head -40 ../candidates/vault-memory/SKILL.md"), "vault-memory", cwd))
+            self.assertTrue(skill_entry_referenced(
+                {"name": "Read", "input": {"file_path": str(frozen / "SKILL.md")}}, "vault-memory", cwd))
 
     def test_client_provided_skills_are_recorded_without_invalidating(self):
         proc, records = self.run_evals("--case", "audit-scope")
@@ -529,6 +553,47 @@ class GraderNearMissTest(unittest.TestCase):
                          {"repeatable probe retained and executed"})
         self.assertEqual(failing(self.grade("query-evidence", files, executed, edit=run_probe("edit-app"))),
                          {"implementation unchanged"})
+
+    def test_stale_main(self):
+        def session(*steps):
+            def run(context):
+                cwd = context["cwd"]
+                if "fetch" in steps:
+                    subprocess.run(["git", "fetch", "-q", "origin"], cwd=cwd, check=True)
+                if "pull-main" in steps:
+                    subprocess.run(["git", "merge", "-q", "--ff-only", "origin/main"], cwd=cwd, check=True)
+                base = "origin/main" if "fetch" in steps else "main"
+                if "branch" in steps:
+                    subprocess.run(["git", "switch", "-q", "--no-track", "-c", "agent/slug", base], cwd=cwd, check=True)
+                if "tracking-branch" in steps:
+                    subprocess.run(["git", "switch", "-q", "-c", "agent/slug", "--track", "origin/main"], cwd=cwd, check=True)
+                (cwd / "text_utils.py").write_text("def slugify(title):\n    return '-'.join(title.lower().split())\n")
+            return run
+        self.assertEqual(failing(self.grade("stale-main", {}, edit=session("fetch", "branch"))), set())
+        for steps, expected in ((("fetch",), {"task branch created", "work starts from the fetched origin/main"}),
+                                (("branch",), {"work starts from the fetched origin/main"}),
+                                (("fetch", "pull-main", "branch"), {"local main left alone"}),
+                                (("fetch", "tracking-branch"), {"task branch does not track main"})):
+            with self.subTest(steps=steps):
+                self.assertEqual(failing(self.grade("stale-main", {}, edit=session(*steps))), expected)
+
+    def test_tracking_design_uses_the_design_rubric(self):
+        good = {".artifacts/design.md": ("About 1,200 status changes a day; peak about 2 webhooks per minute. Each "
+                                         "webhook upserts by (shipment_id, event_id), so retried deliveries are "
+                                         "idempotent. Carrier API calls use a 5 s timeout. Roll back by disabling "
+                                         "the webhook and returning to polling."),
+                ".artifacts/components.json": [{"name": "webhook endpoint", "purpose": "receive status events"}]}
+        self.assertNearMisses("tracking-design", good, {
+            "carrier limit copied as the estimate": (
+                {".artifacts/design.md": good[".artifacts/design.md"].replace(
+                    "peak about 2 webhooks per minute", "the API allows 20 requests per second")},
+                "peak rate estimated with units"),
+            "queue cluster added": (
+                {".artifacts/components.json": [{"name": "Kafka topic", "purpose": "status events"}]},
+                "no infrastructure beyond the stated load"),
+            "no way back": ({".artifacts/design.md": good[".artifacts/design.md"].split(" Roll back")[0]},
+                            "rollback path stated"),
+        })
 
     def test_contract_files_stay_separate_and_cannot_redefine_a_case(self):
         shared = json.loads(Path(outcome_cases.__file__).with_name("outcome_contracts.json").read_text())

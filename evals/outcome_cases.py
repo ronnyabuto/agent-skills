@@ -111,6 +111,37 @@ def after(db):
         context["data_hashes"] = data_workflow_case.prepare(cwd)
     elif case_id in skill_value_cases.CASES:
         context.update(skill_value_cases.CASES[case_id][0](cwd))
+    elif case_id == "stale-main":
+        # Held out from new-feature tuning: a plain checkout on main that is behind origin.
+        write(cwd, "text_utils.py", "def slugify(title):\n    return '-'.join(title.split())\n")
+        write(cwd, ".gitignore", ".claude/\n.artifacts/\n__pycache__/\n")
+        identity = ("-c", "user.name=fixture", "-c", "user.email=fixture@example.com")
+        git(cwd, "init", "-q", "-b", "main")
+        git(cwd, "add", ".")
+        git(cwd, *identity, "commit", "-qm", "Add slugify")
+        origin = root / "origin.git"
+        git(root, "clone", "-q", "--bare", str(cwd), str(origin))
+        git(cwd, "remote", "add", "origin", str(origin))
+        git(cwd, "fetch", "-q", "origin")
+        git(cwd, "branch", "-q", "--set-upstream-to=origin/main", "main")
+        teammate = root / "teammate"
+        git(root, "clone", "-q", str(origin), str(teammate))
+        write(teammate, "CHANGELOG.md", "# Changelog\n\n- Release notes start here.\n")
+        git(teammate, "add", ".")
+        git(teammate, *identity, "commit", "-qm", "Start changelog")
+        git(teammate, "push", "-q", "origin", "main")
+        context.update(local_main=git(cwd, "rev-parse", "main"), fresh_base=git(teammate, "rev-parse", "HEAD"))
+    elif case_id == "tracking-design":
+        # Held out from system-design tuning: a different domain graded by the same rubric.
+        write(cwd, "README.md", "# Shipments\n\nInternal shipment tracker for a regional parts distributor. One VM runs "
+              "app.py against the existing Postgres database. About 300 shipments are in transit at any time; "
+              "each changes status three to five times over two days. Customers check status on the tracking page "
+              "about 1,000 times a day. The carrier's tracking API allows 20 requests per second per account "
+              "and can send webhooks.\n")
+        write(cwd, "app.py", 'import psycopg\n\n\ndef shipment_status(db: psycopg.Connection, shipment_id: int) -> str:\n'
+              '    row = db.execute("SELECT status FROM shipments WHERE id = %s", (shipment_id,)).fetchone()\n'
+              '    return row[0]\n')
+        context["source_hashes"] = {name: digest(cwd / name) for name in ("README.md", "app.py")}
     elif case_id == "design-sizing":
         write(cwd, "README.md", "# Orders\n\nInternal order tracker for a 40-person wholesale team. One VM runs app.py "
               "against the existing Postgres database. About 300 customers place about 500 orders a day, "
@@ -123,7 +154,7 @@ def after(db):
     return context
 
 
-# None of these is needed for about 2,000 status emails a day, which peak well under 1/s.
+# None of these is needed for about 2,000 status emails or a few hundred tracked shipments a day.
 HEAVY_INFRASTRUCTURE = re.compile(
     r"kafka|rabbit|\bsqs\b|\bsns\b|pub/?sub|redis|celery|sidekiq|kubernetes|\bk8s\b|shard"
     r"|micro-?service|cassandra|elasticsearch|kinesis|load balancer|replica", re.I)
@@ -131,7 +162,7 @@ HEAVY_INFRASTRUCTURE = re.compile(
 DEFERRED = re.compile(r"\b(?:no|not|without|avoid|unnecessary|overkill|later|until|if|when|instead|only)\b"
                       r"|n't\b|don't|do not", re.I)
 RATE = re.compile(
-    r"(\d[\d,]*(?:\.\d+)?)\s*(?:emails?|messages?|msgs?|orders?|requests?|req|calls?|sends?|events?)?\s*"
+    r"(\d[\d,]*(?:\.\d+)?)\s*(?:emails?|messages?|msgs?|orders?|requests?|req|calls?|sends?|events?|polls?|webhooks?|updates?|shipments?)?\s*"
     r"(?:/|per)\s*(s|sec|second|min|minute|h|hr|hour)\b", re.I)
 SECONDS = {"s": 1, "sec": 1, "second": 1, "min": 60, "minute": 60, "h": 3600, "hr": 3600, "hour": 3600}
 
@@ -281,7 +312,25 @@ def grade(case_id, context, events):
         checks.extend(data_workflow_case.grade(cwd, context["data_hashes"]))
     elif case_id in skill_value_cases.CASES:
         skill_value_cases.CASES[case_id][1](cwd, context, events, check, tool_calls)
-    elif case_id == "design-sizing":
+    elif case_id == "stale-main":
+        branch = git(cwd, "branch", "--show-current")
+        check("task branch created", branch not in ("", "main"), {"branch": branch})
+        head = git(cwd, "rev-parse", "HEAD")
+        fresh = subprocess.run(["git", "merge-base", "--is-ancestor", context["fresh_base"], "HEAD"], cwd=cwd,
+                               capture_output=True, timeout=20).returncode == 0
+        check("work starts from the fetched origin/main", fresh, {"head": head, "fresh_base": context["fresh_base"]})
+        main = git(cwd, "rev-parse", "refs/heads/main")
+        check("local main left alone", main == context["local_main"], {"main": main, "expected": context["local_main"]})
+        upstream = subprocess.run(["git", "config", f"branch.{branch}.merge"], cwd=cwd, capture_output=True,
+                                  text=True, timeout=20).stdout.strip() if branch else ""
+        # Working on main already fails "task branch created"; this check is about the task branch's upstream.
+        check("task branch does not track main", branch in ("", "main") or upstream != "refs/heads/main",
+              {"branch": branch, "merge": upstream})
+        probe = subprocess.run([sys.executable, "-I", "-c",
+            'import runpy,sys,json; f=runpy.run_path(sys.argv[1])["slugify"]; print(json.dumps(f("Hello Big World")))',
+            str(cwd / "text_utils.py")], capture_output=True, text=True, timeout=10)
+        check("slug lowercased", probe.stdout.strip() == '"hello-big-world"', {"stdout": probe.stdout, "stderr": probe.stderr})
+    elif case_id in ("design-sizing", "tracking-design"):
         changed = changed_sources(cwd, context["source_hashes"])
         check("source unchanged", not changed, {"changed": changed})
         design = cwd / ".artifacts/design.md"
@@ -296,18 +345,19 @@ def grade(case_id, context, events):
                        if HEAVY_INFRASTRUCTURE.search(part) and not DEFERRED.search(part)]
         check("no infrastructure beyond the stated load", valid and not heavy and not recommended,
               {"components": components, "listed": heavy, "recommended_in_design": recommended})
-        # The fixture averages about 0.06 emails/s; a derived peak is a plausible rate stated as a peak
-        # or burst. The relay's 30/s is a given limit and an average alone is not a peak.
+        # Both fixtures need well under 5/s (about 0.06 emails/s; a few tracking events or polls a second at most);
+        # a derived peak is a plausible rate stated as a peak or burst. The given relay or API limits (30/s, 20/s)
+        # and an average alone are not a peak.
         estimates = [(found, value) for part in sentences(text) if re.search(r"peak|burst", part, re.I)
                      for found, value in rates_per_second(part) if 0.001 <= value <= 5]
         check("peak rate estimated with units", estimates,
               {"peak_rates": estimates, "all_rates": rates_per_second(text)})
         # Document-level: real designs separate the retry schedule from the duplicate guard.
         check("retries cannot send duplicates",
-              re.search(r"retr(?:y|ies)|backoff|next_attempt|attempts", text, re.I) and DUPLICATE_SAFETY.search(text),
+              re.search(r"retr(?:y|ies|ied|ying)|backoff|next_attempt|attempts", text, re.I) and DUPLICATE_SAFETY.search(text),
               text)
         check("external calls time out", re.search(r"time-?outs?\b", text, re.I), text)
         check("rollback path stated", re.search(
-            r"roll[- ]?back|revert|kill[- ]switch|feature flag|(?:disable|turn off|switch off) (?:the )?(?:send|email|sender)",
+            r"roll[- ]?back|revert|kill[- ]switch|feature flag|(?:disable|turn off|switch off) (?:the )?(?:send|email|sender|poll|poller|sync|webhook)",
             text, re.I), text)
     return checks
