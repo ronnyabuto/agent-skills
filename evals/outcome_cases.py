@@ -7,10 +7,11 @@ import subprocess
 import sys
 
 import data_workflow_case
+import skill_value_cases
 
 
 # The first file is shared byte-for-byte with the Codex collection; the second holds
-# cases for skills only this collection has.
+# cases only this collection runs.
 CONTRACT_FILES = ("outcome_contracts.json", "outcome_contracts.claude.json")
 
 
@@ -108,6 +109,8 @@ def after(db):
         write(cwd, "arithmetic.py", "def double(value):\n    return value + 1\n")
     elif case_id == "data-rehearsal":
         context["data_hashes"] = data_workflow_case.prepare(cwd)
+    elif case_id in skill_value_cases.CASES:
+        context.update(skill_value_cases.CASES[case_id][0](cwd))
     elif case_id == "design-sizing":
         write(cwd, "README.md", "# Orders\n\nInternal order tracker for a 40-person wholesale team. One VM runs app.py "
               "against the existing Postgres database. About 300 customers place about 500 orders a day, "
@@ -276,6 +279,8 @@ def grade(case_id, context, events):
         check("unrelated skill not used", not used, used)
     elif case_id == "data-rehearsal":
         checks.extend(data_workflow_case.grade(cwd, context["data_hashes"]))
+    elif case_id in skill_value_cases.CASES:
+        skill_value_cases.CASES[case_id][1](cwd, context, events, check, tool_calls)
     elif case_id == "design-sizing":
         changed = changed_sources(cwd, context["source_hashes"])
         check("source unchanged", not changed, {"changed": changed})

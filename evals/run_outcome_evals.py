@@ -23,7 +23,8 @@ from outcome_cases import CASES, contracts_bytes, grade, prepare, tool_calls, us
 SKILLS_ROOT = Path(__file__).resolve().parent.parent
 MIN_VERSION = (2, 1, 300)
 # Files whose changes would alter prompts, grading or classification of a resumed run.
-HARNESS_FILES = ("run_outcome_evals.py", "outcome_cases.py", "data_workflow_case.py", "claude_session.py")
+HARNESS_FILES = ("run_outcome_evals.py", "outcome_cases.py", "data_workflow_case.py", "skill_value_cases.py",
+                 "claude_session.py")
 EX_TEMPFAIL = 75
 
 
@@ -35,7 +36,7 @@ def snapshot_hash(root):
     return digest.hexdigest()
 
 
-def session_command(args, query, settings):
+def session_command(args, query, settings, extra_tools=()):
     command = [
         "claude", "-p", query, "--model", args.model,
         "--max-turns", str(args.max_turns), "--max-budget-usd", str(args.max_budget_usd),
@@ -43,17 +44,17 @@ def session_command(args, query, settings):
         "--setting-sources", "project", "--settings", json.dumps(settings),
         "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--no-chrome",
         "--permission-mode", "default", "--permission-prompts", "none",
-        "--tools", "Read,Write,Edit,Glob,Grep,Bash,Skill",
-        "--allowedTools", "Read", "Write", "Edit", "Glob", "Grep", "Skill",
-        "Bash(git *)", "Bash(python3 *)", "Bash(node *)", "Bash(ls *)",
-        "Bash(cat *)", "Bash(pwd)", "Bash(rg *)", "Bash(mkdir *)",
+        "--tools", ",".join(["Read", "Write", "Edit", "Glob", "Grep", "Bash", "Skill", *extra_tools]),
+        # Plain Bash: python3 already runs arbitrary code, and prefix rules denied ordinary loops,
+        # pipes and heredocs in both arms, which scored permission noise as model failures.
+        "--allowedTools", "Read", "Write", "Edit", "Glob", "Grep", "Skill", "Bash", *extra_tools,
     ]
     if args.effort is not None:
         command += ["--effort", args.effort]
     return command
 
 
-def run_arm(case_id, arm, args, destination):
+def run_arm(case_id, run, arm, args, destination):
     case = CASES[case_id]
     skill = case["skill"]
     destination.mkdir(parents=True)
@@ -77,7 +78,7 @@ def run_arm(case_id, arm, args, destination):
                 "XDG_CACHE_HOME": str(destination / "cache")},
     }
     settings["skillOverrides"][skill] = "on" if arm == "enabled" else "off"
-    command = session_command(args, user_prompt(case_id), settings)
+    command = session_command(args, user_prompt(case_id), settings, case.get("tools", ()))
     (destination / "request.json").write_text(json.dumps({"query": user_prompt(case_id), "command": command}, indent=2) + "\n")
     env = dict(os.environ, **settings["env"])
     if args.effort is not None:
@@ -93,7 +94,7 @@ def run_arm(case_id, arm, args, destination):
         call["name"] == "Read" and f"/{skill}/SKILL.md" in call.get("input", {}).get("file_path", "")
         or call["name"] == "Bash" and f"/{skill}/SKILL.md" in call.get("input", {}).get("command", "")
         for call in calls)
-    record.update(type="case", case=case_id, skill=skill, arm=arm, skill_read=read,
+    record.update(type="case", case=case_id, run=run, skill=skill, arm=arm, skill_read=read,
                   artifacts=str(destination), candidate_sha256=candidate_hash, available_sha256=available_hash)
     if snapshot_hash(skill_dir) != available_hash:
         record["error"] = record["error"] or "skill_snapshot_changed"
@@ -130,10 +131,17 @@ def summarize(records):
     counts = {arm: {status: sum(r["arm"] == arm and r["status"] == status for r in records)
                     for status in ("pass", "fail", "error")} for arm in ("enabled", "disabled")}
     pairs = []
-    for case_id in dict.fromkeys(r["case"] for r in records):
-        pair = {r["arm"]: r for r in records if r["case"] == case_id}
+    for key in dict.fromkeys((r["case"], r.get("run", 1)) for r in records):
+        pair = {r["arm"]: r for r in records if (r["case"], r.get("run", 1)) == key}
         if len(pair) == 2 and all(r["status"] != "error" for r in pair.values()):
             pairs.append(pair)
+    per_case = {}
+    for pair in pairs:
+        row = per_case.setdefault(pair["enabled"]["case"], {"comparable_runs": 0, "enabled_passes": 0,
+                                                            "disabled_passes": 0})
+        row["comparable_runs"] += 1
+        for arm in ("enabled", "disabled"):
+            row[f"{arm}_passes"] += pair[arm]["status"] == "pass"
     rates = {arm: sum(p[arm]["status"] == "pass" for p in pairs) / len(pairs) if pairs else None
              for arm in counts}
     tokens = {}
@@ -150,9 +158,10 @@ def summarize(records):
         def difference(field):
             values = [record.get(field) for record in (enabled, disabled)]
             return values[0] - values[1] if all(type(v) in (int, float) for v in values) else None
-        overhead.append(dict(case=enabled["case"], elapsed_seconds_delta=difference("elapsed_seconds"),
+        overhead.append(dict(case=enabled["case"], run=enabled.get("run", 1), elapsed_seconds_delta=difference("elapsed_seconds"),
                              token_delta=difference("reported_tokens"), turn_delta=difference("num_turns")))
     return dict(type="summary", counts=counts, paired_overhead=overhead, comparable_pairs=len(pairs), pass_rates=rates,
+                per_case=per_case,
                 main_loop_tokens=tokens,
                 pass_rate_delta=(rates["enabled"] - rates["disabled"] if pairs else None),
                 observed_cost_usd=round(sum(reported), 8) if reported else None,
@@ -162,10 +171,15 @@ def summarize(records):
                                  for arm in counts})
 
 
-def planned_arms(cases):
-    # Alternate order to reduce a consistent first-run/cache bias.
-    return [(case_id, arm) for index, case_id in enumerate(cases)
-            for arm in (("enabled", "disabled") if index % 2 == 0 else ("disabled", "enabled"))]
+def planned_arms(cases, runs=1):
+    # Repetitions run in rounds so a slow period affects every case; arm order alternates to
+    # reduce a consistent first-run/cache bias.
+    return [(case_id, run, arm) for run in range(1, runs + 1) for index, case_id in enumerate(cases)
+            for arm in (("enabled", "disabled") if (index + run) % 2 == 1 else ("disabled", "enabled"))]
+
+
+def arm_dir(output, case_id, run, arm):
+    return output / case_id / (arm if run == 1 else f"{arm}-{run}")
 
 
 def harness_hash():
@@ -193,11 +207,12 @@ def load_resume(parser, args):
     args.model, args.effort = metadata["model"], metadata["requested_effort"]
     args.max_turns, args.timeout = metadata["max_turns"], metadata["timeout"]
     args.max_budget_usd, args.skills_root = metadata["max_budget_usd_per_arm"], output / "candidates"
+    args.runs = metadata.get("runs", 1)
     latest = {}
     for line in lines:
         record = json.loads(line)
         if record.get("type") == "case":
-            latest[(record["case"], record["arm"])] = record
+            latest[(record["case"], record.get("run", 1), record["arm"])] = record
     return output, metadata, latest
 
 
@@ -211,6 +226,8 @@ def main():
     parser.add_argument("--max-turns", type=int, default=16)
     parser.add_argument("--timeout", type=positive_number, default=180)
     parser.add_argument("--max-budget-usd", type=positive_number, default=0.75)
+    parser.add_argument("--runs", type=int, default=1,
+                        help="Repetitions per arm; each repetition is a separate fresh pair")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--resume", type=Path, metavar="RUN_DIR",
                         help="Run only the arms an earlier run did not reach or that stopped at a usage or rate limit")
@@ -218,13 +235,15 @@ def main():
     args = parser.parse_args()
     if args.max_turns < 1:
         parser.error("--max-turns must be positive")
+    if args.runs < 1:
+        parser.error("--runs must be positive")
     if args.list:
         print(json.dumps(CASES, indent=2))
         return 0
     if args.resume:
         flags = dict(cases="--case", model="--model", effort="--effort", skills_root="--skills-root",
                      max_turns="--max-turns", timeout="--timeout", max_budget_usd="--max-budget-usd",
-                     output="--output")
+                     output="--output", runs="--runs")
         fixed = [flag for name, flag in flags.items() if getattr(args, name) != parser.get_default(name)]
         if fixed:
             parser.error("--resume reuses the run's recorded settings; remove " + ", ".join(fixed))
@@ -246,22 +265,23 @@ def main():
         if metadata["claude_version"] != version:
             parser.error(f"cannot resume: run used {metadata['claude_version']}, installed is {version}")
         selected = metadata["cases"]
-        pending = [(c, a) for c, a in planned_arms(selected)
-                   if (c, a) not in latest or latest[(c, a)].get("error") == LIMIT_ERROR]
+        pending = [key for key in planned_arms(selected, args.runs)
+                   if key not in latest or latest[key].get("error") == LIMIT_ERROR]
         if not pending:
             parser.error(f"nothing to resume in {output}: every arm has a recorded result")
-        for case_id, arm in pending:
-            previous = output / case_id / arm
+        for case_id, run, arm in pending:
+            previous = arm_dir(output, case_id, run, arm)
             if previous.exists():
                 # Keep the limited attempt's evidence beside the rerun.
                 attempt = 1
-                while previous.with_name(f"{arm}.limited-{attempt}").exists():
+                while previous.with_name(f"{previous.name}.limited-{attempt}").exists():
                     attempt += 1
-                previous.rename(previous.with_name(f"{arm}.limited-{attempt}"))
+                previous.rename(previous.with_name(f"{previous.name}.limited-{attempt}"))
         report = (output / "report.jsonl").open("a", encoding="utf-8")
         report.write(json.dumps(dict(type="resume", claude_version=version,
                                      resumed_at=datetime.now(timezone.utc).isoformat(),
-                                     pending=[f"{c}:{a}" for c, a in pending])) + "\n")
+                                     pending=[f"{c}:{a}" if r == 1 else f"{c}:{a}-{r}"
+                                              for c, r, a in pending])) + "\n")
     else:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         output = (args.output or Path(tempfile.gettempdir()) / f"skill-outcomes-{stamp}").resolve()
@@ -289,29 +309,29 @@ def main():
                         requested_effort=args.effort, skills_root=str(source_root), cases=selected,
                         revision=revision.stdout.strip() if revision.returncode == 0 else None,
                         working_tree=tree.stdout if tree.returncode == 0 else None,
-                        max_turns=args.max_turns, timeout=args.timeout,
+                        max_turns=args.max_turns, timeout=args.timeout, runs=args.runs,
                         max_budget_usd_per_arm=args.max_budget_usd, harness_sha256=harness_hash(),
                         candidate_sha256={CASES[c]["skill"]: snapshot_hash(args.skills_root / CASES[c]["skill"]) for c in selected})
         (output / "run.json").write_text(json.dumps(metadata, indent=2) + "\n")
         report = (output / "report.jsonl").open("x", encoding="utf-8")
         report.write(json.dumps(metadata) + "\n")
-        latest, pending = {}, planned_arms(selected)
+        latest, pending = {}, planned_arms(selected, args.runs)
     limited = None
     with report:
-        for case_id, arm in pending:
-            record = run_arm(case_id, arm, args, output / case_id / arm)
-            latest[(case_id, arm)] = record
+        for case_id, run, arm in pending:
+            record = run_arm(case_id, run, arm, args, arm_dir(output, case_id, run, arm))
+            latest[(case_id, run, arm)] = record
             report.write(json.dumps(record) + "\n")
             report.flush()
-            print(f"{record['status'].upper():5} {case_id:20} {arm:8} {record['error'] or ''}", flush=True)
+            print(f"{record['status'].upper():5} {case_id:20} {run:3} {arm:8} {record['error'] or ''}", flush=True)
             if record["error"] == LIMIT_ERROR:
                 # Every later arm would hit the same limit; stop instead of paying for failures.
                 limited = record
                 break
-        records = [latest[key] for key in planned_arms(selected) if key in latest]
+        records = [latest[key] for key in planned_arms(selected, args.runs) if key in latest]
         summary = summarize(records)
         summary["unfinished_arms"] = sum(key not in latest or latest[key]["error"] == LIMIT_ERROR
-                                         for key in planned_arms(selected))
+                                         for key in planned_arms(selected, args.runs))
         report.write(json.dumps(summary) + "\n")
     (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))
